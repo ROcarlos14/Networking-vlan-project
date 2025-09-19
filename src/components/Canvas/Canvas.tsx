@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useAppStore } from '../../store';
 import { createDeviceFromTemplate } from '../../data/sampleData';
+import { useConnectionManager } from '../../hooks/useConnectionManager';
 import {
   createSvgContainer,
   createZoomBehavior,
@@ -47,6 +48,16 @@ const Canvas: React.FC = () => {
   
   const [dragOver, setDragOver] = useState(false);
   const [showConnectionLabels, setShowConnectionLabels] = useState(false);
+  
+  // Connection management
+  const {
+    startConnection,
+    completeConnection,
+    cancelConnection,
+    isCreatingConnection,
+    sourceDevice: connectionSourceDevice,
+    canConnect
+  } = useConnectionManager();
 
   // Initialize D3.js canvas
   const initializeCanvas = useCallback(() => {
@@ -76,11 +87,15 @@ const Canvas: React.FC = () => {
     const zoom = createZoomBehavior(svg, container, defaultZoomConfig);
     zoomRef.current = zoom;
 
-    // Add canvas click handler for deselection
+    // Add canvas click handler for deselection and connection cancellation
     svg.on('click', () => {
-      selectDevice(undefined);
+      if (isCreatingConnection) {
+        cancelConnection();
+      } else {
+        selectDevice(undefined);
+      }
     });
-  }, [selectDevice]);
+  }, [selectDevice, isCreatingConnection, cancelConnection]);
 
   // Update canvas content
   const updateCanvas = useCallback(() => {
@@ -126,8 +141,19 @@ const Canvas: React.FC = () => {
 
   // Device interaction handlers
   const handleDeviceClick = useCallback((device: any, event: MouseEvent) => {
-    selectDevice(device.id === selectedDevice ? undefined : device.id);
-  }, [selectDevice, selectedDevice]);
+    if (isCreatingConnection) {
+      // Complete connection if we're in connection mode
+      completeConnection(device);
+    } else if (event.altKey || event.shiftKey) {
+      // Start connection creation with Alt/Shift + click
+      if (canConnect(device)) {
+        startConnection(device);
+      }
+    } else {
+      // Normal device selection
+      selectDevice(device.id === selectedDevice ? undefined : device.id);
+    }
+  }, [selectDevice, selectedDevice, isCreatingConnection, completeConnection, startConnection, canConnect]);
 
   const handleDeviceDragStart = useCallback((device: any) => {
     // Device drag start logic
@@ -257,6 +283,20 @@ const Canvas: React.FC = () => {
         </div>
       )}
 
+      {/* Connection creation indicator */}
+      {isCreatingConnection && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+            <div className="text-sm font-medium">
+              Creating connection from {connectionSourceDevice?.name}
+            </div>
+            <div className="text-xs opacity-75">
+              Click a device to connect, or click canvas to cancel
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Canvas Controls */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-20">
         <button
@@ -288,14 +328,29 @@ const Canvas: React.FC = () => {
             🏷️
           </button>
         )}
+        
+        <button
+          onClick={isCreatingConnection ? cancelConnection : () => {}}
+          className={`bg-gray-800 bg-opacity-80 hover:bg-opacity-100 text-white p-2 rounded-lg transition-colors ${
+            isCreatingConnection ? 'ring-2 ring-red-400' : ''
+          }`}
+          title="Connection Mode: Shift+Click device to start connection"
+        >
+          🔗
+        </button>
       </div>
 
       {/* Canvas Info */}
-      <div className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-80 px-3 py-2 rounded-lg text-sm text-gray-300">
+      <div className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-80 px-3 py-2 rounded-lg text-sm text-gray-300 max-w-sm">
         <div>D3.js Canvas: Pan, Zoom, Drag</div>
         <div>Devices: {devices.length} | Connections: {connections.length}</div>
         {selectedDevice && (
           <div>Selected: {devices.find(d => d.id === selectedDevice)?.name}</div>
+        )}
+        {!isCreatingConnection && devices.length > 1 && (
+          <div className="text-xs mt-1 opacity-75">
+            Shift+Click devices to create connections
+          </div>
         )}
       </div>
     </div>

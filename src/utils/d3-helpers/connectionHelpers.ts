@@ -81,13 +81,16 @@ export const getConnectionStrokeProperties = (
 
   // Determine stroke width based on connection type
   if (connection.connectionType === ConnectionType.ETHERNET) {
-    // Check if this is a trunk connection by looking at interface types
-    // This is a simplification - in real implementation, we'd check the actual interface config
-    if (connection.name?.toLowerCase().includes('trunk')) {
+    // Check if this is a trunk connection by looking at connection name or bandwidth
+    const isTrunk = connection.name?.toLowerCase().includes('trunk') || 
+                   connection.bandwidth >= 1000;
+    
+    if (isTrunk) {
       strokeWidth = config.trunkStrokeWidth;
       strokeDasharray = config.dashArray.trunk;
     } else {
       strokeWidth = config.accessStrokeWidth;
+      strokeDasharray = config.dashArray.access;
     }
   }
 

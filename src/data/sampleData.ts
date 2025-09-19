@@ -248,99 +248,124 @@ export const createSampleConnections = (devices: NetworkDevice[]): Connection[] 
   const connections: Connection[] = [];
   
   if (devices.length >= 4) {
-    // Connect router to core switch
-    connections.push({
-      id: generateId(),
-      name: 'Router-CoreSwitch',
-      sourceDevice: devices[3].id, // Router
-      sourceInterface: (devices[3] as RouterDevice).interfaces[0].id,
-      targetDevice: devices[0].id, // Core Switch
-      targetInterface: (devices[0] as SwitchDevice).interfaces[0].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 1000,
-    });
+    // Find devices by name for more reliable connections
+    const coreSwitch = devices.find(d => d.name === 'Core-Switch-01') as SwitchDevice;
+    const accessSwitch1 = devices.find(d => d.name === 'Access-Switch-01') as SwitchDevice;
+    const accessSwitch2 = devices.find(d => d.name === 'Access-Switch-02') as SwitchDevice;
+    const router = devices.find(d => d.name === 'Gateway-Router') as RouterDevice;
+    
+    if (router && coreSwitch) {
+      // Connect router to core switch
+      connections.push({
+        id: generateId(),
+        name: 'Router-CoreSwitch-Trunk',
+        sourceDevice: router.id,
+        sourceInterface: router.interfaces[0].id,
+        targetDevice: coreSwitch.id,
+        targetInterface: coreSwitch.interfaces[0].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 1000,
+      });
+    }
 
-    // Connect core switch to access switches
-    connections.push({
-      id: generateId(),
-      name: 'CoreSwitch-AccessSwitch1',
-      sourceDevice: devices[0].id, // Core Switch
-      sourceInterface: (devices[0] as SwitchDevice).interfaces[1].id,
-      targetDevice: devices[1].id, // Access Switch 1
-      targetInterface: (devices[1] as SwitchDevice).interfaces[23].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 1000,
-    });
+    if (coreSwitch && accessSwitch1) {
+      // Connect core switch to access switch 1
+      connections.push({
+        id: generateId(),
+        name: 'CoreSwitch-AccessSwitch1-Trunk',
+        sourceDevice: coreSwitch.id,
+        sourceInterface: coreSwitch.interfaces[1].id,
+        targetDevice: accessSwitch1.id,
+        targetInterface: accessSwitch1.interfaces[23].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 1000,
+      });
+    }
 
-    connections.push({
-      id: generateId(),
-      name: 'CoreSwitch-AccessSwitch2',
-      sourceDevice: devices[0].id, // Core Switch
-      sourceInterface: (devices[0] as SwitchDevice).interfaces[2].id,
-      targetDevice: devices[2].id, // Access Switch 2
-      targetInterface: (devices[2] as SwitchDevice).interfaces[23].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 1000,
-    });
+    if (coreSwitch && accessSwitch2) {
+      // Connect core switch to access switch 2
+      connections.push({
+        id: generateId(),
+        name: 'CoreSwitch-AccessSwitch2-Trunk',
+        sourceDevice: coreSwitch.id,
+        sourceInterface: coreSwitch.interfaces[2].id,
+        targetDevice: accessSwitch2.id,
+        targetInterface: accessSwitch2.interfaces[23].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 1000,
+      });
+    }
   }
+
+  // Find end devices by name for reliable connections
+  const pc001 = devices.find(d => d.name === 'PC-001') as PcDevice;
+  const pc002 = devices.find(d => d.name === 'PC-002') as PcDevice;
+  const pc003 = devices.find(d => d.name === 'PC-003') as PcDevice;
+  const webServer = devices.find(d => d.name === 'Web-Server') as ServerDevice;
+  
+  // Get access switches again for PC connections
+  const accessSwitch1 = devices.find(d => d.name === 'Access-Switch-01') as SwitchDevice;
+  const accessSwitch2 = devices.find(d => d.name === 'Access-Switch-02') as SwitchDevice;
 
   // Connect PCs and servers to access switches
-  if (devices.length >= 8) {
-    // PC-001 to Access-Switch-01
-    connections.push({
-      id: generateId(),
-      name: 'PC001-AccessSwitch1',
-      sourceDevice: devices[4].id, // PC-001
-      sourceInterface: (devices[4] as PcDevice).interface.id,
-      targetDevice: devices[1].id, // Access Switch 1
-      targetInterface: (devices[1] as SwitchDevice).interfaces[0].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 100,
-    });
+    if (pc001 && accessSwitch1) {
+      connections.push({
+        id: generateId(),
+        name: 'PC001-AccessSwitch1',
+        sourceDevice: pc001.id,
+        sourceInterface: pc001.interface.id,
+        targetDevice: accessSwitch1.id,
+        targetInterface: accessSwitch1.interfaces[0].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 100,
+      });
+    }
 
-    // PC-002 to Access-Switch-01
-    connections.push({
-      id: generateId(),
-      name: 'PC002-AccessSwitch1',
-      sourceDevice: devices[5].id, // PC-002
-      sourceInterface: (devices[5] as PcDevice).interface.id,
-      targetDevice: devices[1].id, // Access Switch 1
-      targetInterface: (devices[1] as SwitchDevice).interfaces[1].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 100,
-    });
+    if (pc002 && accessSwitch1) {
+      connections.push({
+        id: generateId(),
+        name: 'PC002-AccessSwitch1',
+        sourceDevice: pc002.id,
+        sourceInterface: pc002.interface.id,
+        targetDevice: accessSwitch1.id,
+        targetInterface: accessSwitch1.interfaces[1].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 100,
+      });
+    }
 
-    // Web-Server to Access-Switch-02
-    connections.push({
-      id: generateId(),
-      name: 'WebServer-AccessSwitch2',
-      sourceDevice: devices[6].id, // Web Server
-      sourceInterface: (devices[6] as RouterDevice).interfaces[0].id,
-      targetDevice: devices[2].id, // Access Switch 2
-      targetInterface: (devices[2] as SwitchDevice).interfaces[0].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 1000,
-    });
+    if (webServer && accessSwitch2) {
+      connections.push({
+        id: generateId(),
+        name: 'WebServer-AccessSwitch2',
+        sourceDevice: webServer.id,
+        sourceInterface: webServer.interfaces[0].id,
+        targetDevice: accessSwitch2.id,
+        targetInterface: accessSwitch2.interfaces[0].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 1000,
+      });
+    }
 
-    // PC-003 to Access-Switch-02
-    connections.push({
-      id: generateId(),
-      name: 'PC003-AccessSwitch2',
-      sourceDevice: devices[7].id, // PC-003
-      sourceInterface: (devices[7] as PcDevice).interface.id,
-      targetDevice: devices[2].id, // Access Switch 2
-      targetInterface: (devices[2] as SwitchDevice).interfaces[1].id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 100,
-    });
-  }
+    if (pc003 && accessSwitch2) {
+      connections.push({
+        id: generateId(),
+        name: 'PC003-AccessSwitch2',
+        sourceDevice: pc003.id,
+        sourceInterface: pc003.interface.id,
+        targetDevice: accessSwitch2.id,
+        targetInterface: accessSwitch2.interfaces[1].id,
+        connectionType: ConnectionType.ETHERNET,
+        status: ConnectionStatus.UP,
+        bandwidth: 100,
+      });
+    }
 
   return connections;
 };
