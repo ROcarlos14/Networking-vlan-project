@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Custom styles for network simulator */
+.network-canvas {
+  cursor: crosshair;
+}
+
+.network-canvas.panning {
+  cursor: grab;
+}
+
+.network-canvas.panning:active {
+  cursor: grabbing;
+}
+
+.device-node {
+  cursor: pointer;
+}
+
+.device-node:hover {
+  filter: brightness(1.2);
+}
+
+.connection-line {
+  stroke-width: 2;
+  fill: none;
+}
+
+.connection-line.trunk {
+  stroke-dasharray: 5,5;
+}
+
+.connection-line.access {
+  stroke-dasharray: none;
+}
+
+.vlan-highlight {
+  opacity: 0.3;
+}
+
+.vlan-highlight.active {
+  opacity: 1;
+  stroke-width: 3;
+}
