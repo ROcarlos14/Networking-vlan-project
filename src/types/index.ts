@@ -25,6 +25,7 @@ export enum ViewType {
   TOPOLOGY = 'topology',
   VLAN_CONFIG = 'vlan_config',
   PACKET_SIM = 'packet_sim',
+  STP = 'stp',
   STATISTICS = 'statistics',
 }
 

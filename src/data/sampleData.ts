@@ -5,6 +5,7 @@ import {
   SwitchDevice,
   RouterDevice,
   PcDevice,
+  ServerDevice,
   InterfaceType,
   InterfaceStatus,
   Vlan,

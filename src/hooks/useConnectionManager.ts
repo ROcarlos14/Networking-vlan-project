@@ -9,7 +9,9 @@ import { generateId } from '../data/sampleData';
 interface ConnectionCreationState {
   isCreating: boolean;
   sourceDevice?: NetworkDevice;
+  sourceInterfaceId?: string;
   targetDevice?: NetworkDevice;
+  targetInterfaceId?: string;
 }
 
 /**
@@ -28,6 +30,9 @@ export const useConnectionManager = () => {
     setConnectionState({
       isCreating: true,
       sourceDevice,
+      sourceInterfaceId: undefined,
+      targetDevice: undefined,
+      targetInterfaceId: undefined,
     });
   }, []);
 
@@ -37,48 +42,15 @@ export const useConnectionManager = () => {
   const completeConnection = useCallback((targetDevice: NetworkDevice) => {
     if (!connectionState.sourceDevice || connectionState.sourceDevice.id === targetDevice.id) {
       // Cancel if no source or connecting to self
-      cancelConnection();
+      setConnectionState({ isCreating: false });
       return;
     }
 
-    // Check if connection already exists
-    const existingConnection = connections.find(conn => 
-      (conn.sourceDevice === connectionState.sourceDevice!.id && conn.targetDevice === targetDevice.id) ||
-      (conn.sourceDevice === targetDevice.id && conn.targetDevice === connectionState.sourceDevice!.id)
-    );
-
-    if (existingConnection) {
-      // Connection already exists
-      cancelConnection();
-      return;
-    }
-
-    // Get available interfaces
-    const sourceInterface = getAvailableInterface(connectionState.sourceDevice);
-    const targetInterface = getAvailableInterface(targetDevice);
-
-    if (!sourceInterface || !targetInterface) {
-      // No available interfaces
-      cancelConnection();
-      return;
-    }
-
-    // Create new connection
-    const newConnection: Connection = {
-      id: generateId(),
-      name: `${connectionState.sourceDevice.name}-${targetDevice.name}`,
-      sourceDevice: connectionState.sourceDevice.id,
-      sourceInterface: sourceInterface.id,
-      targetDevice: targetDevice.id,
-      targetInterface: targetInterface.id,
-      connectionType: ConnectionType.ETHERNET,
-      status: ConnectionStatus.UP,
-      bandwidth: 1000, // Default bandwidth
-    };
-
-    addConnection(newConnection);
-    setConnectionState({ isCreating: false });
-  }, [connectionState, connections, addConnection]);
+    setConnectionState((prev) => ({
+      ...prev,
+      targetDevice,
+    }));
+  }, [connectionState.sourceDevice]);
 
   /**
    * Cancel connection creation
@@ -132,6 +104,43 @@ export const useConnectionManager = () => {
     return 'default';
   }, [connectionState.isCreating]);
 
+  const setSourceInterfaceId = useCallback((ifaceId: string) => {
+    setConnectionState((prev) => ({ ...prev, sourceInterfaceId: ifaceId }));
+  }, []);
+
+  const setTargetInterfaceId = useCallback((ifaceId: string) => {
+    setConnectionState((prev) => ({ ...prev, targetInterfaceId: ifaceId }));
+  }, []);
+
+  const commitConnection = useCallback(() => {
+    const { sourceDevice, sourceInterfaceId, targetDevice, targetInterfaceId } = connectionState;
+    if (!sourceDevice || !sourceInterfaceId || !targetDevice || !targetInterfaceId) return;
+
+    // Prevent duplicates
+    const duplicate = connections.find(conn => (
+      (conn.sourceDevice === sourceDevice.id && conn.sourceInterface === sourceInterfaceId && conn.targetDevice === targetDevice.id && conn.targetInterface === targetInterfaceId) ||
+      (conn.sourceDevice === targetDevice.id && conn.sourceInterface === targetInterfaceId && conn.targetDevice === sourceDevice.id && conn.targetInterface === sourceInterfaceId)
+    ));
+    if (duplicate) {
+      setConnectionState({ isCreating: false });
+      return;
+    }
+
+    const newConnection: Connection = {
+      id: generateId(),
+      name: `${sourceDevice.name}-${targetDevice.name}`,
+      sourceDevice: sourceDevice.id,
+      sourceInterface: sourceInterfaceId,
+      targetDevice: targetDevice.id,
+      targetInterface: targetInterfaceId,
+      connectionType: ConnectionType.ETHERNET,
+      status: ConnectionStatus.UP,
+      bandwidth: 1000,
+    };
+    addConnection(newConnection);
+    setConnectionState({ isCreating: false });
+  }, [connectionState, connections, addConnection]);
+
   return {
     connectionState,
     startConnection,
@@ -141,5 +150,8 @@ export const useConnectionManager = () => {
     getConnectionCursor,
     isCreatingConnection: connectionState.isCreating,
     sourceDevice: connectionState.sourceDevice,
+    setSourceInterfaceId,
+    setTargetInterfaceId,
+    commitConnection,
   };
 };

@@ -33,6 +33,42 @@ body {
   text-align: center;
 }
 
+/* Sidebar thin scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 transparent; /* thumb, track */
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: #374151; /* gray-700 */
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Modal thin scrollbar */
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent; /* gray-600 */
+}
+.modal-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background-color: #4b5563; /* gray-600 */
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
 /* Custom styles for network simulator */
 .network-canvas {
   cursor: crosshair;

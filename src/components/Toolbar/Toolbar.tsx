@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../store';
 import { ViewType } from '../../types';
 import { sampleTopology } from '../../data/sampleData';
+import { useTheme } from '../../theme/ThemeProvider';
+import { shortcutManager } from '../../theme/keyboardShortcuts';
 
 /**
  * Toolbar component with main actions and controls
@@ -18,10 +20,15 @@ const Toolbar: React.FC = () => {
     toggleVlanHighlight,
     devices,
     connections,
-    vlans
+    vlans,
+    connectionToolActive,
+    toggleConnectionTool,
+    showPortLabels,
+    togglePortLabels,
   } = useAppStore();
 
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [showVlanMenu, setShowVlanMenu] = useState(false);
 
   const handleNewTopology = () => {
     if (devices.length > 0) {
@@ -86,14 +93,28 @@ const Toolbar: React.FC = () => {
     input.click();
   };
 
+  const { themeName, setTheme, availableThemes } = useTheme();
+
+  const cycleTheme = () => {
+    const themeNames = Object.keys(availableThemes) as Array<keyof typeof availableThemes>;
+    const idx = themeNames.indexOf(themeName as any);
+    const next = themeNames[(idx + 1) % themeNames.length];
+    setTheme(next as any);
+  };
+
+  const openCommandPalette = () => {
+    const cmd = shortcutManager.getAllShortcuts().find(s => s.id === 'tools-command-palette');
+    if (cmd) cmd.action();
+  };
+
   return (
-    <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
+    <div className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700/60 px-3 py-2 flex items-center justify-between shadow-sm">
       {/* Left side - File operations */}
       <div className="flex items-center space-x-4">
         <div className="relative">
           <button
             onClick={() => setShowFileMenu(!showFileMenu)}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center"
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors flex items-center text-sm"
           >
             📁 File
             <span className="ml-2">▼</span>
@@ -133,25 +154,79 @@ const Toolbar: React.FC = () => {
 
         {/* View-specific controls */}
         {currentView === ViewType.TOPOLOGY && (
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={toggleVlanHighlight}
-              className={`px-3 py-2 rounded-lg transition-colors flex items-center ${
-                showVlanHighlight 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-              }`}
-            >
-              🎨 VLAN Colors
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <button
+                onClick={() => setShowVlanMenu(!showVlanMenu)}
+                className={`px-2.5 py-1.5 rounded-md transition-colors flex items-center text-sm ${
+                  showVlanHighlight 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+                title="Show VLAN colors"
+              >
+                🎨 VLAN Colors
+              </button>
+
+              {showVlanMenu && (
+                <div className="absolute mt-2 left-0 z-50 w-64 rounded-md border border-gray-700/60 bg-gray-800 shadow-lg p-2">
+                  <div className="px-2 py-1 text-xs uppercase tracking-wider text-gray-400">Available VLANs</div>
+                  <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
+                    {vlans.length === 0 && (
+                      <div className="px-2 py-2 text-sm text-gray-400">No VLANs configured</div>
+                    )}
+                    {vlans.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => {
+                          useAppStore.getState().selectVlan(v.id);
+                          if (!useAppStore.getState().showVlanHighlight) {
+                            useAppStore.getState().toggleVlanHighlight();
+                          }
+                          setShowVlanMenu(false);
+                        }}
+                        className="w-full flex items-center px-2 py-1.5 rounded hover:bg-gray-700 text-left text-sm"
+                        title={`Highlight VLAN ${v.id}`}
+                      >
+                        <span className="inline-block w-3 h-3 rounded-full mr-2 ring-1 ring-white/10" style={{ backgroundColor: v.color }}></span>
+                        <span className="flex-1 truncate">VLAN {v.id} - {v.name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-gray-700/60 mt-2 pt-2 flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        if (useAppStore.getState().showVlanHighlight) {
+                          useAppStore.getState().toggleVlanHighlight();
+                        }
+                        setShowVlanMenu(false);
+                      }}
+                      className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+                    >
+                      Hide Highlights
+                    </button>
+                    <button
+                      onClick={() => {
+                        useAppStore.getState().selectVlan(undefined as any);
+                        setShowVlanMenu(false);
+                      }}
+                      className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {currentView === ViewType.PACKET_SIM && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <button
-              onClick={simulationRunning ? stopSimulation : startSimulation}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
+              onClick={() => simulationRunning ? stopSimulation() : startSimulation()}
+              className={`px-3 py-1.5 rounded-md transition-colors flex items-center text-sm ${
                 simulationRunning
                   ? 'bg-red-600 hover:bg-red-700 text-white'
                   : 'bg-green-600 hover:bg-green-700 text-white'
@@ -172,7 +247,7 @@ const Toolbar: React.FC = () => {
 
       {/* Center - Current view title */}
       <div className="flex-1 text-center">
-        <h2 className="text-lg font-medium text-white">
+        <h2 className="text-base md:text-lg font-medium text-white">
           {currentView === ViewType.TOPOLOGY && 'Network Topology'}
           {currentView === ViewType.VLAN_CONFIG && 'VLAN Configuration'}
           {currentView === ViewType.PACKET_SIM && 'Packet Simulation'}
@@ -180,8 +255,8 @@ const Toolbar: React.FC = () => {
         </h2>
       </div>
 
-      {/* Right side - Status and info */}
-      <div className="flex items-center space-x-4 text-sm text-gray-300">
+      {/* Right side - Controls and info */}
+      <div className="flex items-center space-x-5 text-sm text-gray-300">
         <div className="flex items-center space-x-1">
           <span>🖥️</span>
           <span>{devices.length}</span>
@@ -201,16 +276,52 @@ const Toolbar: React.FC = () => {
           </div>
         )}
 
+        {/* Port labels toggle */}
+        <button
+          onClick={togglePortLabels}
+          className={`px-2.5 py-1.5 rounded-md transition-colors text-sm ${showPortLabels ? 'bg-teal-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
+          title="Show/Hide port endpoint labels"
+        >
+          🏷️ Ports
+        </button>
+
+        {/* Connect tool */}
+        <button
+          onClick={toggleConnectionTool}
+          className={`px-2.5 py-1.5 rounded-md transition-colors text-sm ${connectionToolActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
+          title="Connection mode: Click source device then target device"
+        >
+          🔗 Connect
+        </button>
+
+        {/* Theme toggle moved here */}
+        <button
+          onClick={cycleTheme}
+          className="px-2.5 py-1.5 rounded-md transition-colors bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm"
+          title="Toggle theme"
+        >
+          🎨 Theme
+        </button>
+
+        {/* Command Palette button moved here */}
+        <button
+          onClick={openCommandPalette}
+          className="px-2.5 py-1.5 rounded-md transition-colors bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm"
+          title="Open Command Palette (Ctrl+K)"
+        >
+          ⌨️ Commands
+        </button>
+
         <div className="text-xs text-gray-400">
           {new Date().toLocaleTimeString()}
         </div>
       </div>
 
       {/* Close dropdown when clicking outside */}
-      {showFileMenu && (
+      {(showFileMenu || showVlanMenu) && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => setShowFileMenu(false)}
+          onClick={() => { setShowFileMenu(false); setShowVlanMenu(false); }}
         />
       )}
     </div>

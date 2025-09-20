@@ -11,6 +11,4 @@ export * from './connectionHelpers';
 export type {
   CanvasConfig,
   ZoomConfig,
-  DeviceVisualConfig,
-  ConnectionVisualConfig,
 } from './canvasHelpers';

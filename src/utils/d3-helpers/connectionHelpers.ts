@@ -374,6 +374,101 @@ export const renderConnectionLabels = (
 };
 
 /**
+ * Render endpoint interface labels (source and target) with directional arrows
+ */
+export const renderConnectionEndpointLabels = (
+  container: d3.Selection<SVGGElement, unknown, null, undefined>,
+  connections: Connection[],
+  devices: NetworkDevice[],
+): void => {
+  const deviceMap = new Map(devices.map(d => [d.id, d]));
+
+  type EndpointDatum = {
+    id: string; // unique id per connection endpoint
+    connId: string;
+    x: number;
+    y: number;
+    text: string;
+  };
+
+  const endpointData: EndpointDatum[] = [];
+
+  const getInterfaceName = (dev: any, ifaceId: string): string => {
+    if ('interfaces' in dev && Array.isArray(dev.interfaces)) {
+      const iface = dev.interfaces.find((i: any) => i.id === ifaceId);
+      return iface?.name || ifaceId;
+    }
+    if ('interface' in dev && dev.interface) {
+      if (dev.interface.id === ifaceId) return dev.interface.name || ifaceId;
+    }
+    return ifaceId;
+  };
+
+  connections.forEach((conn) => {
+    const src = deviceMap.get(conn.sourceDevice);
+    const dst = deviceMap.get(conn.targetDevice);
+    if (!src || !dst) return;
+
+    const dx = dst.position.x - src.position.x;
+    const dy = dst.position.y - src.position.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    // Position labels slightly away from device centers, offset perpendicular for readability
+    const along = 40; // distance from device center along the line
+    const perp = 12;  // perpendicular offset
+
+    // Source endpoint label
+    const sx = src.position.x + ux * along - uy * perp;
+    const sy = src.position.y + uy * along + ux * perp;
+    endpointData.push({
+      id: `${conn.id}-src`,
+      connId: conn.id,
+      x: sx,
+      y: sy,
+      text: `⟶ ${getInterfaceName(src as any, conn.sourceInterface)}`,
+    });
+
+    // Target endpoint label
+    const tx = dst.position.x - ux * along + uy * perp;
+    const ty = dst.position.y - uy * along - ux * perp;
+    endpointData.push({
+      id: `${conn.id}-dst`,
+      connId: conn.id,
+      x: tx,
+      y: ty,
+      text: `${getInterfaceName(dst as any, conn.targetInterface)} ⟵`,
+    });
+  });
+
+  // Bind data
+  const labels = container
+    .selectAll<SVGTextElement, EndpointDatum>('.connection-port-label')
+    .data(endpointData, (d: any) => d.id);
+
+  labels.exit().remove();
+
+  const newLabels = labels.enter()
+    .append('text')
+    .attr('class', 'connection-port-label')
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('font-size', 10)
+    .attr('fill', 'white')
+    .attr('stroke', '#1F2937')
+    .attr('stroke-width', 3)
+    .attr('paint-order', 'stroke fill')
+    .style('pointer-events', 'none')
+    .style('user-select', 'none');
+
+  const all = newLabels.merge(labels as any);
+  all
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .text(d => d.text);
+};
+
+/**
  * Animate packet flow along connection
  */
 export const animatePacketFlow = (

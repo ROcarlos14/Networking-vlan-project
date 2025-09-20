@@ -3,11 +3,12 @@
  */
 export interface BaseDevice {
   id: string;
-  name: string;
+  name: string; // hostname
   type: DeviceType;
   position: Position;
   status: DeviceStatus;
   description?: string;
+  password?: string; // optional device password for config GUI
 }
 
 /**

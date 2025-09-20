@@ -1,0 +1,36 @@
+{
+  "name": "Basic 3-switch topology",
+  "description": "Core switch with two access switches, PCs and a server",
+  "devices": [
+    {
+      "id": "core-switch-01",
+      "name": "Core-Switch-01",
+      "position": { "x": 300, "y": 200 },
+      "type": "switch"
+    },
+    {
+      "id": "access-switch-01",
+      "name": "Access-Switch-01",
+      "position": { "x": 150, "y": 350 },
+      "type": "switch"
+    },
+    {
+      "id": "access-switch-02",
+      "name": "Access-Switch-02",
+      "position": { "x": 450, "y": 350 },
+      "type": "switch"
+    },
+    { "id": "gateway-router", "name": "Gateway-Router", "position": { "x": 300, "y": 50 }, "type": "router" },
+    { "id": "pc-001", "name": "PC-001", "position": { "x": 50, "y": 500 }, "type": "pc" },
+    { "id": "pc-002", "name": "PC-002", "position": { "x": 250, "y": 500 }, "type": "pc" },
+    { "id": "web-server", "name": "Web-Server", "position": { "x": 400, "y": 500 }, "type": "server" },
+    { "id": "pc-003", "name": "PC-003", "position": { "x": 550, "y": 500 }, "type": "pc" }
+  ],
+  "connections": [],
+  "vlans": [
+    { "id": 1, "name": "Default", "color": "#E3E3E3" },
+    { "id": 10, "name": "Management", "color": "#FF6B6B" },
+    { "id": 20, "name": "Data", "color": "#4ECDC4" },
+    { "id": 30, "name": "Voice", "color": "#45B7D1" }
+  ]
+}

@@ -97,9 +97,9 @@ export const createGridPattern = (
   gridColor: string = '#374151',
   gridOpacity: number = 0.3
 ): void => {
-  const defs = svg.selectAll('defs').empty() 
+  const defs = (svg.select('defs').empty() 
     ? svg.append('defs') 
-    : svg.select('defs');
+    : svg.select('defs')) as d3.Selection<SVGDefsElement, unknown, null, undefined>;
 
   // Remove existing grid pattern
   defs.selectAll('#grid').remove();
@@ -120,10 +120,9 @@ export const createGridPattern = (
     .attr('opacity', gridOpacity);
 
   // Apply grid as background
-  const gridBackground = svg.selectAll('.grid-background').empty()
-    ? svg.insert('rect', ':first-child')
-        .attr('class', 'grid-background')
-    : svg.select('.grid-background');
+  const gridBackground = (svg.select('.grid-background').empty()
+    ? svg.insert('rect', ':first-child').attr('class', 'grid-background')
+    : svg.select('.grid-background')) as d3.Selection<SVGRectElement, unknown, null, undefined>;
     
   gridBackground
     .attr('width', '100%')

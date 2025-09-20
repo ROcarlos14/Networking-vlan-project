@@ -1,9 +1,15 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from './store';
 import { ViewType } from './types';
+import { useTheme } from './theme/ThemeProvider';
+import { shortcutManager, createDefaultShortcuts } from './theme/keyboardShortcuts';
 import Sidebar from './components/Sidebar/Sidebar';
 import Toolbar from './components/Toolbar/Toolbar';
+import VlanPanel from './components/Vlan/VlanPanel';
 import Canvas from './components/Canvas/Canvas';
+import PacketSimulationPanel from './components/Simulation/PacketSimulationPanel';
+import StatisticsPanel from './components/Statistics/StatisticsPanel';
+import CommandPalette from './components/Professional/CommandPalette';
 import ErrorBoundary from './components/ErrorBoundary';
 
 /**
@@ -11,10 +17,89 @@ import ErrorBoundary from './components/ErrorBoundary';
  */
 function App() {
   const { currentView, isLoading, error } = useAppStore();
+  const { theme, setTheme, availableThemes } = useTheme();
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  
+  const store = useAppStore();
+
+  // Initialize keyboard shortcuts
+  useEffect(() => {
+    const shortcuts = createDefaultShortcuts({
+      // Navigation
+      goToTopology: () => store.setCurrentView(ViewType.TOPOLOGY),
+      goToVlanConfig: () => store.setCurrentView(ViewType.VLAN_CONFIG),
+      goToSimulation: () => store.setCurrentView(ViewType.PACKET_SIM),
+      goToStatistics: () => store.setCurrentView(ViewType.STATISTICS),
+      
+      // Editing - placeholder functions for now
+      createSwitch: () => console.log('Create switch shortcut'),
+      createRouter: () => console.log('Create router shortcut'),
+      createPC: () => console.log('Create PC shortcut'),
+      createServer: () => console.log('Create server shortcut'),
+      deleteSelected: () => console.log('Delete selected shortcut'),
+      duplicateSelected: () => console.log('Duplicate selected shortcut'),
+      selectAll: () => console.log('Select all shortcut'),
+      
+      // View - placeholder functions
+      zoomIn: () => console.log('Zoom in shortcut'),
+      zoomOut: () => console.log('Zoom out shortcut'),
+      zoomFit: () => console.log('Zoom fit shortcut'),
+      zoomReset: () => console.log('Zoom reset shortcut'),
+      toggleGrid: () => console.log('Toggle grid shortcut'),
+      toggleLabels: () => console.log('Toggle labels shortcut'),
+      
+      // Simulation
+      startStopSimulation: () => {
+        if (store.simulationRunning) {
+          store.stopSimulation();
+        } else {
+          store.startSimulation();
+        }
+      },
+      pauseSimulation: () => store.pauseSimulation(),
+      resetSimulation: () => store.stopSimulation(),
+      sendTestPacket: () => {
+        const devices = store.devices.filter(d => d.type !== 'switch');
+        if (devices.length >= 2) {
+          store.sendTestPacket(devices[0].id, devices[1].id);
+        }
+      },
+      
+      // File
+      newTopology: () => store.clearTopology(),
+      saveTopology: () => console.log('Save topology shortcut'),
+      loadTopology: () => console.log('Load topology shortcut'),
+      exportTopology: () => console.log('Export topology shortcut'),
+      
+      // Tools
+      openCommandPalette: () => setShowCommandPalette(true),
+      openShortcutsHelp: () => setShowShortcutsHelp(true),
+      toggleTheme: () => {
+        const themeNames = Object.keys(availableThemes) as Array<keyof typeof availableThemes>;
+        const currentIndex = themeNames.indexOf(theme.name as keyof typeof availableThemes);
+        const nextIndex = (currentIndex + 1) % themeNames.length;
+        setTheme(themeNames[nextIndex]);
+      },
+      openSettings: () => console.log('Open settings shortcut'),
+    });
+
+    shortcuts.forEach(shortcut => shortcutManager.register(shortcut));
+
+    return () => {
+      shortcuts.forEach(shortcut => shortcutManager.unregister(shortcut.id));
+    };
+  }, [store, theme.name, setTheme, availableThemes]);
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+      <div 
+        className="flex h-screen overflow-hidden"
+        style={{
+          backgroundColor: theme.colors.background.primary,
+          color: theme.colors.text.primary,
+        }}
+      >
         {/* Sidebar */}
         <Sidebar />
         
@@ -54,23 +139,55 @@ function App() {
             {/* Main content based on current view */}
             {currentView === ViewType.TOPOLOGY && <Canvas />}
             {currentView === ViewType.VLAN_CONFIG && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400 text-lg">VLAN Configuration Panel - Coming Soon</div>
-              </div>
+              <VlanPanel />
             )}
             {currentView === ViewType.PACKET_SIM && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400 text-lg">Packet Simulation Panel - Coming Soon</div>
-              </div>
+              <PacketSimulationPanel />
             )}
             {currentView === ViewType.STATISTICS && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400 text-lg">Statistics Panel - Coming Soon</div>
-              </div>
+              <StatisticsPanel />
             )}
           </div>
         </div>
       </div>
+      
+      {/* Professional Features */}
+      <CommandPalette 
+        isOpen={showCommandPalette} 
+        onClose={() => setShowCommandPalette(false)} 
+      />
+      
+      {/* Keyboard Shortcuts Help Modal - TODO: Implement */}
+      {showShortcutsHelp && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: theme.colors.background.overlay }}
+          onClick={() => setShowShortcutsHelp(false)}
+        >
+          <div 
+            className="bg-white p-6 rounded-lg max-w-2xl w-full m-4"
+            style={{
+              backgroundColor: theme.colors.background.elevated,
+              color: theme.colors.text.primary,
+              border: `1px solid ${theme.colors.border.primary}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold mb-4">Keyboard Shortcuts</h2>
+            <p className="mb-4">Comprehensive shortcuts help will be implemented here.</p>
+            <button 
+              onClick={() => setShowShortcutsHelp(false)}
+              className="px-4 py-2 rounded"
+              style={{
+                backgroundColor: theme.colors.interactive.primary,
+                color: theme.colors.text.inverse,
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }
