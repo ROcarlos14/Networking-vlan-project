@@ -469,6 +469,84 @@ export const renderConnectionEndpointLabels = (
 };
 
 /**
+ * Render health arrows at each connection endpoint (green/red indicators)
+ */
+export const renderConnectionHealthArrows = (
+  container: d3.Selection<SVGGElement, unknown, null, undefined>,
+  connections: Connection[],
+  devices: NetworkDevice[],
+  health: Map<string, { status: 'ok' | 'warn' | 'error' }>,
+): void => {
+  const deviceMap = new Map(devices.map(d => [d.id, d]));
+
+  type MarkerDatum = {
+    id: string;
+    connId: string;
+    x: number;
+    y: number;
+    angle: number; // degrees
+    color: string;
+  };
+
+  const markers: MarkerDatum[] = [];
+
+  const colorFor = (status: 'ok' | 'warn' | 'error') => {
+    if (status === 'ok') return '#22c55e'; // green-500
+    if (status === 'warn') return '#f59e0b'; // amber-500
+    return '#ef4444'; // red-500
+  };
+
+  connections.forEach((conn) => {
+    const src = deviceMap.get(conn.sourceDevice);
+    const dst = deviceMap.get(conn.targetDevice);
+    if (!src || !dst) return;
+    const dx = dst.position.x - src.position.x;
+    const dy = dst.position.y - src.position.y;
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const along = 56; // increased distance from device center so markers sit outside device shape
+    const perp = 0;
+
+    const h = health.get(conn.id) || { status: 'error' as const };
+    const color = colorFor(h.status);
+
+    // Source marker
+    const sx = src.position.x + ux * along - uy * perp;
+    const sy = src.position.y + uy * along + ux * perp;
+    markers.push({ id: `${conn.id}-src-health`, connId: conn.id, x: sx, y: sy, angle, color });
+
+    // Target marker (reverse angle)
+    const tx = dst.position.x - ux * along + uy * perp;
+    const ty = dst.position.y - uy * along - ux * perp;
+    markers.push({ id: `${conn.id}-dst-health`, connId: conn.id, x: tx, y: ty, angle: angle + 180, color });
+  });
+
+  // Bind data
+  const sel = container
+    .selectAll<SVGPathElement, MarkerDatum>('.connection-health-marker')
+    .data(markers, (d: any) => d.id);
+
+  sel.exit().remove();
+
+  const enter = sel.enter()
+    .append('path')
+    .attr('class', 'connection-health-marker')
+    .attr('d', 'M -8 6 L 8 6 L 0 -10 Z') // larger triangle for visibility
+    .style('pointer-events', 'none');
+
+  const all = enter.merge(sel as any);
+
+  all
+    .attr('transform', d => `translate(${d.x}, ${d.y}) rotate(${d.angle})`)
+    .attr('fill', d => d.color)
+    .attr('stroke', '#111827')
+    .attr('stroke-width', 2)
+    .attr('opacity', 0.95);
+};
+
+/**
  * Animate packet flow along connection
  */
 export const animatePacketFlow = (

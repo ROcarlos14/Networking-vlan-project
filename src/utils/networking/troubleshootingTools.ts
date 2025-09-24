@@ -1119,3 +1119,9 @@ Configuration register is 0x2102
     return output;
   }
 }
+
+/**
+ * Default troubleshooting tools instance
+ */
+export const troubleshootingTools = new NetworkTroubleshootingTools();
+export { NetworkTroubleshootingTools as TroubleshootingTools };

@@ -13,6 +13,12 @@ export interface Connection {
   bandwidth: number; // in Mbps
   latency?: number; // in ms
   packetLoss?: number; // percentage
+  
+  // Legacy properties for backward compatibility
+  from?: string;
+  to?: string;
+  fromInterface?: string;
+  toInterface?: string;
 }
 
 /**

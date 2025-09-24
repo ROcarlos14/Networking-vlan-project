@@ -14,6 +14,7 @@ const Sidebar: React.FC = () => {
     { view: ViewType.TOPOLOGY, label: 'Topology', icon: '🌐' },
     { view: ViewType.VLAN_CONFIG, label: 'VLANs', icon: '🔗' },
     { view: ViewType.PACKET_SIM, label: 'Simulation', icon: '📡' },
+    { view: ViewType.STP, label: 'STP', icon: '🌳' },
     { view: ViewType.STATISTICS, label: 'Statistics', icon: '📊' },
   ];
 

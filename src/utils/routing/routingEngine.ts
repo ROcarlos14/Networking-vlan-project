@@ -250,12 +250,12 @@ export class RoutingTableManager {
   /**
    * Add default route
    */
-  addDefaultRoute(deviceId: string, gateway: string, interface?: string): void {
+  addDefaultRoute(deviceId: string, gateway: string, interfaceName?: string): void {
     this.addRoute(deviceId, {
       network: '0.0.0.0',
       mask: '0.0.0.0',
       nextHop: gateway,
-      interface: interface || 'auto',
+      interface: interfaceName || 'auto',
       metric: 1,
       protocol: 'static',
       administrativeDistance: 1,
@@ -539,13 +539,13 @@ export class RoutingEngine {
     network: string,
     mask: string,
     nextHop: string,
-    interface?: string
+    interfaceName?: string
   ): void {
     this.routingTable.addRoute(deviceId, {
       network,
       mask,
       nextHop,
-      interface: interface || 'auto',
+      interface: interfaceName || 'auto',
       metric: 1,
       protocol: 'static',
       administrativeDistance: 1,

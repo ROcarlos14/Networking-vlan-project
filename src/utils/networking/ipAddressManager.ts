@@ -123,6 +123,15 @@ export class IPAddressUtils {
   }
 
   /**
+   * Convert subnet mask to prefix length
+   */
+  static maskToPrefix(mask: string): number {
+    const parts = mask.split('.').map(Number);
+    const binaryMask = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
+    return 32 - Math.log2((~binaryMask >>> 0) + 1);
+  }
+
+  /**
    * Get next available IP in range
    */
   static getNextAvailableIP(startIp: string, endIp: string, usedIps: Set<string>): string | null {
@@ -701,3 +710,8 @@ export class NetworkIPManager {
     return 32 - Math.log2((~binaryMask >>> 0) + 1);
   }
 }
+
+/**
+ * Default IP Address Manager instance
+ */
+export const ipAddressManager = new NetworkIPManager();

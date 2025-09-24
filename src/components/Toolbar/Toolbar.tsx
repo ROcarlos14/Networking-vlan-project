@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../store';
 import { ViewType } from '../../types';
 import { sampleTopology } from '../../data/sampleData';
-import { useTheme } from '../../theme/ThemeProvider';
 import { shortcutManager } from '../../theme/keyboardShortcuts';
 
 /**
@@ -93,14 +92,7 @@ const Toolbar: React.FC = () => {
     input.click();
   };
 
-  const { themeName, setTheme, availableThemes } = useTheme();
 
-  const cycleTheme = () => {
-    const themeNames = Object.keys(availableThemes) as Array<keyof typeof availableThemes>;
-    const idx = themeNames.indexOf(themeName as any);
-    const next = themeNames[(idx + 1) % themeNames.length];
-    setTheme(next as any);
-  };
 
   const openCommandPalette = () => {
     const cmd = shortcutManager.getAllShortcuts().find(s => s.id === 'tools-command-palette');
@@ -251,6 +243,7 @@ const Toolbar: React.FC = () => {
           {currentView === ViewType.TOPOLOGY && 'Network Topology'}
           {currentView === ViewType.VLAN_CONFIG && 'VLAN Configuration'}
           {currentView === ViewType.PACKET_SIM && 'Packet Simulation'}
+          {currentView === ViewType.STP && 'Spanning Tree Protocol'}
           {currentView === ViewType.STATISTICS && 'Network Statistics'}
         </h2>
       </div>
@@ -294,14 +287,6 @@ const Toolbar: React.FC = () => {
           🔗 Connect
         </button>
 
-        {/* Theme toggle moved here */}
-        <button
-          onClick={cycleTheme}
-          className="px-2.5 py-1.5 rounded-md transition-colors bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm"
-          title="Toggle theme"
-        >
-          🎨 Theme
-        </button>
 
         {/* Command Palette button moved here */}
         <button

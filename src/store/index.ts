@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { NetworkDevice, Connection, Vlan, AppState, ViewType, SimulationScenario, PacketSimulation, TrafficFlow, SimulationStats, SimulatedPacket } from '../types';
+import { NetworkDevice, Connection, Vlan, AppState, ViewType, SimulationScenario, PacketSimulation, TrafficFlow, SimulationStats, SimulatedPacket, DeviceType, InterfaceStatus } from '../types';
 import { SimulationEngine, createSimulationEngine } from '../utils/simulation/simulationEngine';
 
 // Main application store interface
@@ -396,13 +396,56 @@ export const useAppStore = create<AppStore>()(
           }), false, 'clearTopology'),
 
         loadTopology: ({ devices, connections, vlans }) =>
-          set(() => ({
-            devices,
-            connections,
-            vlans,
-            selectedDevice: undefined,
-            selectedVlan: undefined,
-          }), false, 'loadTopology'),
+          set(() => {
+            // Auto turn up interfaces that are part of provided connections
+            const deviceMap: Record<string, NetworkDevice> = {};
+            devices.forEach(d => { deviceMap[d.id] = d; });
+
+            const updatedDevices = devices.map((dev) => {
+              // Servers: set all interfaces UP
+              if (dev.type === DeviceType.SERVER && (dev as any).interfaces && Array.isArray((dev as any).interfaces)) {
+                const devAny = dev as any;
+                const newIfaces = devAny.interfaces.map((i: any) => i.status === InterfaceStatus.UP ? i : { ...i, status: InterfaceStatus.UP });
+                return { ...dev, interfaces: newIfaces } as NetworkDevice;
+              }
+
+              // Switches/Routers: mark connected interfaces UP
+              if ((dev as any).interfaces && Array.isArray((dev as any).interfaces)) {
+                const devAny = dev as any;
+                const newIfaces = devAny.interfaces.map((i: any) => {
+                  const used = connections.some(conn =>
+                    (conn.sourceDevice === dev.id && conn.sourceInterface === i.id) ||
+                    (conn.targetDevice === dev.id && conn.targetInterface === i.id)
+                  );
+                  if (used && i.status !== InterfaceStatus.UP) {
+                    return { ...i, status: InterfaceStatus.UP };
+                  }
+                  return i;
+                });
+                return { ...dev, interfaces: newIfaces } as NetworkDevice;
+              }
+
+              // PCs: set single interface UP
+              if (dev.type === DeviceType.PC && (dev as any).interface) {
+                const devAny = dev as any;
+                const i = devAny.interface;
+                if (i && i.status !== InterfaceStatus.UP) {
+                  return { ...dev, interface: { ...i, status: InterfaceStatus.UP } } as NetworkDevice;
+                }
+                return dev;
+              }
+
+              return dev;
+            });
+
+            return {
+              devices: updatedDevices,
+              connections,
+              vlans,
+              selectedDevice: undefined,
+              selectedVlan: undefined,
+            };
+          }, false, 'loadTopology'),
       }),
       {
         name: 'vlan-simulator-store',

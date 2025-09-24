@@ -523,7 +523,8 @@ export class PacketProcessingEngine {
     // Hosts typically have only one interface - send to all connected interfaces
     const interfaces = connections
       .filter(conn => conn.from === hostId || conn.to === hostId)
-      .map(conn => conn.from === hostId ? conn.fromInterface : conn.toInterface);
+      .map(conn => (conn.from === hostId ? conn.fromInterface : conn.toInterface))
+      .filter((iface): iface is string => !!iface);
     
     return { action: 'forward', interfaces };
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Device, Connection } from '../../types';
-import { VLAN_COLORS } from './VlanLearningInterface';
+import { getVlanColor } from '../../types/colors';
 
 /**
  * Traffic Flow Animation Types
@@ -110,7 +110,7 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
             dstDeviceId: dstDevice.id,
             vlanId: pattern.vlan,
             packetType: pattern.type,
-            currentPosition: { x: srcDevice.x, y: srcDevice.y },
+            currentPosition: { x: srcDevice.position.x, y: srcDevice.position.y },
             path: calculatePath(srcDevice, dstDevice, connections),
             pathIndex: 0,
             isTagged: pattern.vlan !== 1,
@@ -136,8 +136,8 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
     
     // Direct connection check
     const directConnection = connections.find(
-      conn => (conn.from === src.id && conn.to === dst.id) ||
-              (conn.from === dst.id && conn.to === src.id)
+      conn => (conn.sourceDevice === src.id && conn.targetDevice === dst.id) ||
+              (conn.sourceDevice === dst.id && conn.targetDevice === src.id)
     );
     
     if (directConnection) {
@@ -149,13 +149,13 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
     
     for (const intermediateDevice of switches) {
       const toIntermediate = connections.find(
-        conn => (conn.from === src.id && conn.to === intermediateDevice.id) ||
-                (conn.from === intermediateDevice.id && conn.to === src.id)
+        conn => (conn.sourceDevice === src.id && conn.targetDevice === intermediateDevice.id) ||
+                (conn.sourceDevice === intermediateDevice.id && conn.targetDevice === src.id)
       );
       
       const fromIntermediate = connections.find(
-        conn => (conn.from === intermediateDevice.id && conn.to === dst.id) ||
-                (conn.from === dst.id && conn.to === intermediateDevice.id)
+        conn => (conn.sourceDevice === intermediateDevice.id && conn.targetDevice === dst.id) ||
+                (conn.sourceDevice === dst.id && conn.targetDevice === intermediateDevice.id)
       );
       
       if (toIntermediate && fromIntermediate) {
@@ -185,8 +185,8 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
         if (!currentDevice || !nextDevice) return packet;
         
         // Calculate movement vector
-        const dx = nextDevice.x - currentDevice.x;
-        const dy = nextDevice.y - currentDevice.y;
+        const dx = nextDevice.position.x - currentDevice.position.x;
+        const dy = nextDevice.position.y - currentDevice.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance === 0) return packet;
@@ -200,13 +200,13 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
         
         // Check if reached next device
         const distanceToNext = Math.sqrt(
-          Math.pow(newX - nextDevice.x, 2) + Math.pow(newY - nextDevice.y, 2)
+          Math.pow(newX - nextDevice.position.x, 2) + Math.pow(newY - nextDevice.position.y, 2)
         );
         
         if (distanceToNext < 10) {
           return {
             ...packet,
-            currentPosition: { x: nextDevice.x, y: nextDevice.y },
+            currentPosition: { x: nextDevice.position.x, y: nextDevice.position.y },
             pathIndex: packet.pathIndex + 1
           };
         }
@@ -263,7 +263,7 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
    */
   const getPacketColor = (packet: AnimatedPacket): string => {
     if (config.colorByVlan) {
-      return VLAN_COLORS[packet.vlanId] || '#6B7280';
+      return getVlanColor(packet.vlanId);
     }
     
     // Color by packet type
@@ -455,7 +455,7 @@ const TrafficFlowAnimator: React.FC<TrafficFlowAnimatorProps> = ({
               <div className="flex items-center">
                 <div
                   className="w-2 h-2 rounded mr-1"
-                  style={{ backgroundColor: VLAN_COLORS[parseInt(vlanId)] || '#6B7280' }}
+                  style={{ backgroundColor: getVlanColor(parseInt(vlanId)) }}
                 />
                 VLAN {vlanId}
               </div>

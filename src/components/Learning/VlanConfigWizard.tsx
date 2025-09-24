@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
-import { Device, Connection, VlanConfig } from '../../types';
-import { VLAN_COLORS } from './VlanLearningInterface';
+import { Device, Connection, Vlan, DeviceType } from '../../types';
+import { getVlanColor } from '../../types/colors';
+import { 
+  TemplateDevice, 
+  TemplateConnection, 
+  TemplateVlan,
+  templateDeviceToNetworkDevice,
+  templateConnectionToConnection,
+  templateVlanToVlan 
+} from '../../utils/templateHelpers';
 
 /**
  * Wizard Step Interface
@@ -24,16 +32,16 @@ export interface NetworkTemplate {
   description: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   topology: {
-    devices: Partial<Device>[];
-    connections: Partial<Connection>[];
-    vlans: VlanConfig[];
+    devices: TemplateDevice[];
+    connections: TemplateConnection[];
+    vlans: TemplateVlan[];
   };
   configuration: {
     [deviceId: string]: {
       vlans?: number[];
       trunkPorts?: string[];
       accessPorts?: { [port: string]: number };
-      ipAddresses?: { [interface: string]: string };
+      ipAddresses?: { [interfaceName: string]: string };
     };
   };
 }
@@ -209,7 +217,7 @@ const NetworkPurposeStep: React.FC<{ onSelect: (template: NetworkTemplate) => vo
                   >
                     <div
                       className="w-2 h-2 rounded"
-                      style={{ backgroundColor: VLAN_COLORS[vlan.id] || '#6B7280' }}
+                      style={{ backgroundColor: getVlanColor(vlan.id) }}
                     />
                     <span className="text-gray-600">VLAN {vlan.id}</span>
                   </div>
@@ -228,9 +236,9 @@ const NetworkPurposeStep: React.FC<{ onSelect: (template: NetworkTemplate) => vo
  */
 const VlanConfigStep: React.FC<{
   template: NetworkTemplate;
-  onUpdate: (vlans: VlanConfig[]) => void;
+  onUpdate: (vlans: TemplateVlan[]) => void;
 }> = ({ template, onUpdate }) => {
-  const [vlans, setVlans] = useState<VlanConfig[]>(template.topology.vlans);
+  const [vlans, setVlans] = useState<TemplateVlan[]>(template.topology.vlans);
   const [newVlan, setNewVlan] = useState({ id: '', name: '' });
 
   useEffect(() => {
@@ -270,7 +278,7 @@ const VlanConfigStep: React.FC<{
               <div className="flex items-center space-x-3">
                 <div
                   className="w-4 h-4 rounded"
-                  style={{ backgroundColor: VLAN_COLORS[vlan.id] || '#6B7280' }}
+                  style={{ backgroundColor: getVlanColor(vlan.id) }}
                 />
                 <span className="font-medium">VLAN {vlan.id}</span>
                 <span className="text-gray-600">{vlan.name}</span>
@@ -337,7 +345,7 @@ const VlanConfigStep: React.FC<{
  */
 const PortAssignmentStep: React.FC<{
   template: NetworkTemplate;
-  vlans: VlanConfig[];
+  vlans: TemplateVlan[];
   onUpdate: (assignments: any) => void;
 }> = ({ template, vlans, onUpdate }) => {
   const [assignments, setAssignments] = useState<any>(template.configuration);
@@ -358,7 +366,7 @@ const PortAssignmentStep: React.FC<{
   const currentSwitchConfig = assignments[selectedSwitch] || {};
 
   const updatePortAssignment = (port: string, vlanId: number, mode: 'access' | 'trunk') => {
-    setAssignments(prev => ({
+    setAssignments((prev: any) => ({
       ...prev,
       [selectedSwitch]: {
         ...prev[selectedSwitch],
@@ -369,7 +377,7 @@ const PortAssignmentStep: React.FC<{
         trunkPorts: mode === 'trunk' ? [
           ...(prev[selectedSwitch]?.trunkPorts || []),
           port
-        ] : (prev[selectedSwitch]?.trunkPorts || []).filter(p => p !== port)
+        ] : (prev[selectedSwitch]?.trunkPorts || []).filter((p: any) => p !== port)
       }
     }));
   };
@@ -425,7 +433,7 @@ const PortAssignmentStep: React.FC<{
                   <div className="flex items-center justify-center mt-1">
                     <div
                       className="w-3 h-3 rounded mr-1"
-                      style={{ backgroundColor: VLAN_COLORS[assignedVlan] || '#6B7280' }}
+                      style={{ backgroundColor: getVlanColor(assignedVlan) }}
                     />
                     <span className="text-xs">VLAN {assignedVlan}</span>
                   </div>
@@ -439,19 +447,22 @@ const PortAssignmentStep: React.FC<{
                       updatePortAssignment(port, 0, 'trunk');
                     } else if (value === 'unassigned') {
                       // Remove assignment
-                      setAssignments(prev => ({
-                        ...prev,
-                        [selectedSwitch]: {
-                          ...prev[selectedSwitch],
-                          accessPorts: {
-                            ...prev[selectedSwitch]?.accessPorts
-                          },
-                          trunkPorts: (prev[selectedSwitch]?.trunkPorts || []).filter(p => p !== port)
+                      setAssignments((prev: any) => {
+                        const newPrev = {
+                          ...prev,
+                          [selectedSwitch]: {
+                            ...prev[selectedSwitch],
+                            accessPorts: {
+                              ...prev[selectedSwitch]?.accessPorts
+                            },
+                            trunkPorts: (prev[selectedSwitch]?.trunkPorts || []).filter((p: any) => p !== port)
+                          }
+                        };
+                        if (newPrev[selectedSwitch]?.accessPorts?.[port]) {
+                          delete newPrev[selectedSwitch].accessPorts[port];
                         }
-                      }));
-                      if (prev[selectedSwitch]?.accessPorts?.[port]) {
-                        delete prev[selectedSwitch].accessPorts[port];
-                      }
+                        return newPrev;
+                      });
                     } else {
                       updatePortAssignment(port, parseInt(value), 'access');
                     }
@@ -497,7 +508,7 @@ const PortAssignmentStep: React.FC<{
  */
 const ReviewStep: React.FC<{
   template: NetworkTemplate;
-  vlans: VlanConfig[];
+  vlans: TemplateVlan[];
   assignments: any;
   onDeploy: () => void;
 }> = ({ template, vlans, assignments, onDeploy }) => {
@@ -547,7 +558,7 @@ const ReviewStep: React.FC<{
               <div key={vlan.id} className="flex items-center space-x-3 text-sm">
                 <div
                   className="w-3 h-3 rounded"
-                  style={{ backgroundColor: VLAN_COLORS[vlan.id] || '#6B7280' }}
+                  style={{ backgroundColor: getVlanColor(vlan.id) }}
                 />
                 <span className="font-medium">VLAN {vlan.id}</span>
                 <span className="text-gray-600">{vlan.name}</span>
@@ -572,7 +583,7 @@ const ReviewStep: React.FC<{
                     <span className="w-16">{port}:</span>
                     <div
                       className="w-3 h-3 rounded"
-                      style={{ backgroundColor: VLAN_COLORS[vlanId] || '#6B7280' }}
+                      style={{ backgroundColor: getVlanColor(vlanId) }}
                     />
                     <span>VLAN {vlanId} ({vlans.find(v => v.id === vlanId)?.name})</span>
                   </div>
@@ -620,7 +631,7 @@ const ReviewStep: React.FC<{
 const VlanConfigWizard: React.FC<VlanConfigWizardProps> = ({ isOpen, onClose, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<NetworkTemplate | null>(null);
-  const [configuredVlans, setConfiguredVlans] = useState<VlanConfig[]>([]);
+  const [configuredVlans, setConfiguredVlans] = useState<TemplateVlan[]>([]);
   const [portAssignments, setPortAssignments] = useState<any>({});
 
   const steps = [

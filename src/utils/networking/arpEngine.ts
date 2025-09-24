@@ -444,8 +444,8 @@ export class ArpEngine {
     // For now, return all interfaces except the ingress one
     const interfaces = connections
       .filter(conn => conn.from === switchId || conn.to === switchId)
-      .map(conn => conn.from === switchId ? conn.fromInterface : conn.toInterface)
-      .filter(iface => iface !== excludeInterface);
+      .map(conn => (conn.from === switchId ? conn.fromInterface : conn.toInterface))
+      .filter((iface): iface is string => !!iface && iface !== excludeInterface);
     
     return interfaces;
   }
@@ -457,13 +457,25 @@ export class ArpEngine {
   }
 
   private getDeviceIpAddress(device: Device): string {
-    // Extract IP address from device configuration
-    return device.config?.ipAddress || '';
+    // Extract IP address from first interface when available
+    if ((device as any).interface && (device as any).interface.ipAddress) {
+      return (device as any).interface.ipAddress as string;
+    }
+    if ((device as any).interfaces && Array.isArray((device as any).interfaces) && (device as any).interfaces[0]?.ipAddress) {
+      return (device as any).interfaces[0].ipAddress as string;
+    }
+    return '';
   }
 
   private getDeviceMacAddress(device: Device): string {
-    // Extract MAC address from device configuration
-    return device.config?.macAddress || this.generateMacAddress(device.id);
+    // Extract MAC address from first interface when available
+    if ((device as any).interface && (device as any).interface.macAddress) {
+      return (device as any).interface.macAddress as string;
+    }
+    if ((device as any).interfaces && Array.isArray((device as any).interfaces) && (device as any).interfaces[0]?.macAddress) {
+      return (device as any).interfaces[0].macAddress as string;
+    }
+    return this.generateMacAddress(device.id);
   }
 
   private generateMacAddress(deviceId: string): string {

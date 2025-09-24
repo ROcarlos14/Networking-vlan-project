@@ -26,6 +26,7 @@ import {
   defaultConnectionConfig,
 } from '../../utils/d3-helpers/connectionHelpers';
 import { PacketAnimationManager } from '../../utils/simulation/packetAnimation';
+import { evaluateConnectionHealth } from '../../utils/networking/linkHealth';
 import { PacketStatus } from '../../types/simulation';
 import DeviceConfigModal from '../Modals/DeviceConfigModal';
 import { getInterfaceVlans, validateNetworkVlanConfig } from '../../utils/vlan-logic/vlanConfiguration';
@@ -81,6 +82,8 @@ const Canvas: React.FC = () => {
     setSourceInterfaceId,
     setTargetInterfaceId,
     commitConnection,
+    getAvailableInterface,
+    quickConnectToTarget,
   } = useConnectionManager();
 
   // Connection context menu (for deletion)
@@ -109,6 +112,9 @@ const Canvas: React.FC = () => {
 
     // Create device container  
     container.append('g').attr('class', 'devices-container');
+
+    // Create overlay container for markers/arrows on top of devices
+    container.append('g').attr('class', 'overlay-container').style('pointer-events', 'none');
 
     // Initialize packet animation manager
     const animationManager = new PacketAnimationManager(container);
@@ -221,6 +227,17 @@ const Canvas: React.FC = () => {
         toggleSelectConnection(d.id);
       });
 
+    // Render connection health arrows (green/red) on overlay so they sit above devices
+    const healthMap = new Map<string, { status: 'ok' | 'warn' | 'error' }>();
+    connections.forEach(conn => {
+      const h = evaluateConnectionHealth(conn, devices);
+      healthMap.set(conn.id, { status: h.status });
+    });
+    const overlayContainer = containerRef.current.select('.overlay-container') as d3.Selection<SVGGElement, unknown, null, undefined>;
+    import('../../utils/d3-helpers/connectionHelpers').then(({ renderConnectionHealthArrows }) => {
+      renderConnectionHealthArrows(overlayContainer as any, connections as any, devices as any, healthMap as any);
+    });
+
     // Render endpoint interface labels based on toggle
     if (showPortLabels) {
       import('../../utils/d3-helpers/connectionHelpers').then(({ renderConnectionEndpointLabels }) => {
@@ -297,32 +314,43 @@ const Canvas: React.FC = () => {
 
   // Device interaction handlers
   const handleDeviceClick = useCallback((device: any, event: MouseEvent) => {
+    // If in quick connect target selection
     if (isCreatingConnection) {
-      // Stage target device and open interface picker for target
-      completeConnection(device);
-      setIfacePicker({ open: true, device, role: 'target' });
+      // Attempt quick connect to this target
+      const ok = quickConnectToTarget(device);
+      if (!ok) {
+        useAppStore.getState().setError('No available interfaces to connect on one or both devices.');
+      }
       return;
     }
 
-    // If Ctrl/Cmd is held, do a simple select without toggling connection mode
+    // If Ctrl/Cmd is held, simple select
     if ((event as any).ctrlKey || (event as any).metaKey) {
       selectDevice(device.id === selectedDevice ? undefined : device.id);
       return;
     }
 
-    // Click-to-connect flow (always allowed), enhanced when toolbar connect tool is active
+    // Click-to-connect flow: start and auto-select source interface
     const { connectionToolActive } = useAppStore.getState();
-    if (connectionToolActive && canConnect(device)) {
+    if (connectionToolActive) {
+      if (!canConnect(device)) {
+        useAppStore.getState().setError('No available interfaces on this device.');
+        return;
+      }
       startConnection(device);
       selectDevice(device.id);
-      // Prompt to choose source interface immediately
-      setIfacePicker({ open: true, device, role: 'source' });
+      // Optionally preselect a source interface for visual consistency (not strictly needed for quick connect)
+      const srcIface = getAvailableInterface(device as any);
+      if (srcIface) {
+        setSourceInterfaceId(srcIface.id);
+      }
+      // No modal; next click on target will complete connection
       return;
     }
 
     // If tool not active, fall back to selection
     selectDevice(device.id === selectedDevice ? undefined : device.id);
-  }, [selectDevice, selectedDevice, isCreatingConnection, completeConnection, startConnection, canConnect]);
+  }, [selectDevice, selectedDevice, isCreatingConnection, startConnection, canConnect, getAvailableInterface, setSourceInterfaceId, quickConnectToTarget]);
 
   const handleDeviceDragStart = useCallback((device: any) => {
     // Device drag start logic
@@ -341,6 +369,7 @@ const Canvas: React.FC = () => {
   // Handle device template drop
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    try { e.dataTransfer.dropEffect = 'copy'; } catch {}
     setDragOver(true);
   };
 
@@ -356,9 +385,16 @@ const Canvas: React.FC = () => {
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
       
-      if (data.type === 'device-template' && svgRef.current && zoomRef.current) {
-        const transform = d3.zoomTransform(svgRef.current.node() as Element);
-        const canvasCoords = screenToCanvas(e.clientX, e.clientY, transform, svgRef.current);
+      if (data.type === 'device-template') {
+        let canvasCoords: { x: number; y: number } = { x: 100, y: 100 };
+        if (svgRef.current) {
+          // Use current transform if available; falls back to identity
+          const transform = d3.zoomTransform(svgRef.current.node() as Element);
+          canvasCoords = screenToCanvas(e.clientX, e.clientY, transform, svgRef.current);
+        } else if (canvasRef.current) {
+          const rect = canvasRef.current.getBoundingClientRect();
+          canvasCoords = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
         
         const deviceName = `${data.template.name}-${devices.length + 1}`;
         const newDevice = createDeviceFromTemplate(data.template, deviceName, canvasCoords);
@@ -494,8 +530,8 @@ const Canvas: React.FC = () => {
 
       {/* Empty state */}
       {devices.length === 0 && !dragOver && (
-        <div className="absolute inset-0 flex items-center justify-center text-gray-400 z-10">
-          <div className="text-center">
+        <div className="absolute inset-0 flex items-center justify-center text-gray-400 z-10 pointer-events-none">
+          <div className="text-center pointer-events-auto">
             <div className="text-4xl mb-4">🌐</div>
             <div className="text-lg mb-2">No devices in topology</div>
             <div className="text-sm">Drag devices from the sidebar to get started</div>

@@ -182,14 +182,151 @@ export const createDeviceFromTemplate = (
   position: { x: number; y: number }
 ): NetworkDevice => {
   const id = generateId();
-  
-  return {
-    id,
-    name,
-    position,
-    description: `${template.name} - ${name}`,
-    ...template.defaultConfig,
-  } as NetworkDevice;
+
+  // Deep-create device from template with fresh interface IDs and MACs
+  switch (template.type) {
+    case DeviceType.SWITCH: {
+      const t = template.defaultConfig as Partial<SwitchDevice>;
+      const sourceIfaces = Array.isArray(t.interfaces) ? t.interfaces : Array.from({ length: 24 }).map((_, i) => ({
+        name: `Fa0/${i + 1}`,
+        type: InterfaceType.ACCESS,
+        status: InterfaceStatus.DOWN,
+        speed: 100,
+        duplex: 'full' as const,
+      }));
+      const interfaces = sourceIfaces.map((iface: any, i: number) => ({
+        id: generateId(),
+        name: iface.name ?? `Fa0/${i + 1}`,
+        type: iface.type ?? InterfaceType.ACCESS,
+        status: iface.status ?? InterfaceStatus.DOWN,
+        macAddress: generateMacAddress(),
+        speed: iface.speed ?? 100,
+        duplex: iface.duplex ?? ('full' as const),
+        vlanConfig: iface.vlanConfig ? { ...iface.vlanConfig } : { accessVlan: 1 },
+      }));
+
+      const device: SwitchDevice = {
+        id,
+        name,
+        type: DeviceType.SWITCH,
+        position,
+        status: t?.status ?? DeviceStatus.ACTIVE,
+        interfaces,
+        macAddressTable: [],
+        vlanDatabase: (t?.vlanDatabase ?? defaultVlans.map(v => ({ id: v.id, name: v.name, status: v.status === VlanStatus.ACTIVE ? 'active' : 'suspended' })))
+          .map(v => ({ ...v })),
+        spanningTreeEnabled: t?.spanningTreeEnabled ?? true,
+        description: `${template.name} - ${name}`,
+      };
+      return device;
+    }
+    case DeviceType.ROUTER: {
+      const t = template.defaultConfig as Partial<RouterDevice>;
+      const sourceIfaces = Array.isArray(t.interfaces) ? t.interfaces : Array.from({ length: 4 }).map((_, i) => ({
+        name: `Gi0/${i}`,
+        type: InterfaceType.ETHERNET,
+        status: InterfaceStatus.DOWN,
+        speed: 1000,
+        duplex: 'full' as const,
+      }));
+      const interfaces = sourceIfaces.map((iface: any, i: number) => ({
+        id: generateId(),
+        name: iface.name ?? `Gi0/${i}`,
+        type: iface.type ?? InterfaceType.ETHERNET,
+        status: iface.status ?? InterfaceStatus.DOWN,
+        macAddress: generateMacAddress(),
+        speed: iface.speed ?? 1000,
+        duplex: iface.duplex ?? ('full' as const),
+      }));
+
+      const device: RouterDevice = {
+        id,
+        name,
+        type: DeviceType.ROUTER,
+        position,
+        status: t?.status ?? DeviceStatus.ACTIVE,
+        interfaces,
+        routingTable: Array.isArray(t?.routingTable) ? t!.routingTable.map(r => ({ ...r })) : [],
+        ospfEnabled: t?.ospfEnabled ?? false,
+        bgpEnabled: t?.bgpEnabled ?? false,
+        description: `${template.name} - ${name}`,
+      };
+      return device;
+    }
+    case DeviceType.PC: {
+      const t = template.defaultConfig as Partial<PcDevice>;
+      const iface = t?.interface ?? {
+        name: 'Eth0',
+        type: InterfaceType.ETHERNET,
+        status: InterfaceStatus.DOWN,
+        speed: 1000,
+        duplex: 'full' as const,
+      };
+      const device: PcDevice = {
+        id,
+        name,
+        type: DeviceType.PC,
+        position,
+        status: t?.status ?? DeviceStatus.ACTIVE,
+        interface: {
+          id: generateId(),
+          name: iface.name ?? 'Eth0',
+          type: iface.type ?? InterfaceType.ETHERNET,
+          status: InterfaceStatus.UP, // End-host NICs default to UP
+          macAddress: generateMacAddress(),
+          speed: iface.speed ?? 1000,
+          duplex: iface.duplex ?? ('full' as const),
+        },
+        defaultGateway: t?.defaultGateway,
+        dnsServers: t?.dnsServers ? [...t.dnsServers] : undefined,
+        description: `${template.name} - ${name}`,
+      };
+      return device;
+    }
+    case DeviceType.SERVER: {
+      const t = template.defaultConfig as Partial<ServerDevice>;
+      const sourceIfaces = Array.isArray(t.interfaces) ? t.interfaces : Array.from({ length: 2 }).map((_, i) => ({
+        name: `Eth${i}`,
+        type: InterfaceType.ETHERNET,
+        status: InterfaceStatus.DOWN,
+        speed: 1000,
+        duplex: 'full' as const,
+      }));
+      const interfaces = sourceIfaces.map((iface: any, i: number) => ({
+        id: generateId(),
+        name: iface.name ?? `Eth${i}`,
+        type: iface.type ?? InterfaceType.ETHERNET,
+        status: InterfaceStatus.UP, // Servers default interfaces UP
+        macAddress: generateMacAddress(),
+        speed: iface.speed ?? 1000,
+        duplex: iface.duplex ?? ('full' as const),
+      }));
+
+      const device: ServerDevice = {
+        id,
+        name,
+        type: DeviceType.SERVER,
+        position,
+        status: t?.status ?? DeviceStatus.ACTIVE,
+        interfaces,
+        services: t?.services ? [...t.services] : ['HTTP', 'HTTPS', 'SSH'],
+        defaultGateway: t?.defaultGateway,
+        dnsServers: t?.dnsServers ? [...t.dnsServers] : undefined,
+        description: `${template.name} - ${name}`,
+      };
+      return device;
+    }
+    default: {
+      // Fallback: shallow clone but ensure unique id and description
+      return {
+        id,
+        name,
+        position,
+        description: `${template.name} - ${name}`,
+        ...(template.defaultConfig as any),
+      } as NetworkDevice;
+    }
+  }
 };
 
 /**

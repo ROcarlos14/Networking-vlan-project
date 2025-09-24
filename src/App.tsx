@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useAppStore } from './store';
-import { ViewType } from './types';
-import { useTheme } from './theme/ThemeProvider';
-import { shortcutManager, createDefaultShortcuts } from './theme/keyboardShortcuts';
-import Sidebar from './components/Sidebar/Sidebar';
-import Toolbar from './components/Toolbar/Toolbar';
-import VlanPanel from './components/Vlan/VlanPanel';
-import Canvas from './components/Canvas/Canvas';
-import PacketSimulationPanel from './components/Simulation/PacketSimulationPanel';
-import StatisticsPanel from './components/Statistics/StatisticsPanel';
-import CommandPalette from './components/Professional/CommandPalette';
-import ErrorBoundary from './components/ErrorBoundary';
+// Import from modular structure
+import { 
+  useAppStore,
+  ViewType,
+  Canvas,
+  Toolbar,
+  Sidebar,
+  VlanPanel,
+  PacketSimulationPanel,
+  StatisticsPanel,
+  STPPanel,
+  CommandPalette,
+  ErrorBoundary,
+  useTheme,
+  shortcutManager,
+  createDefaultShortcuts
+} from './modules';
 
 /**
  * Main application component
@@ -146,6 +151,9 @@ function App() {
             )}
             {currentView === ViewType.STATISTICS && (
               <StatisticsPanel />
+            )}
+            {currentView === ViewType.STP && (
+              <STPPanel />
             )}
           </div>
         </div>

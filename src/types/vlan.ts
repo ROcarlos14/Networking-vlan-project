@@ -82,3 +82,18 @@ export interface VlanTrafficStats {
   errors: number;
   lastUpdated: Date;
 }
+
+/**
+ * Legacy VlanConfig type for backward compatibility
+ * Historically used to mean a per-VLAN configuration; align it with Vlan entity.
+ */
+export type VlanConfig = Vlan;
+
+/**
+ * VTP mode enumeration
+ */
+export enum VtpMode {
+  SERVER = 'server',
+  CLIENT = 'client',
+  TRANSPARENT = 'transparent'
+}

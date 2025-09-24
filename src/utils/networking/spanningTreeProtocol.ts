@@ -409,20 +409,21 @@ export class SpanningTreeProtocol {
       }
     });
 
-    if (!rootBridge) return;
+if (!rootBridge) return;
 
-    // Update all bridges with root information
-    this.bridges.forEach(bridge => {
-      bridge.isRoot = bridge.bridgeId === rootBridge!.bridgeId;
-      bridge.rootBridge = rootBridge!.bridgeId;
-      
-      if (bridge.isRoot) {
-        bridge.rootPathCost = 0;
-        bridge.rootPort = undefined;
-      }
-    });
+// Update all bridges with root information
+const rb = rootBridge as STPBridgeInfo;
+this.bridges.forEach(bridge => {
+  bridge.isRoot = bridge.bridgeId === rb.bridgeId;
+  bridge.rootBridge = rb.bridgeId;
+  
+  if (bridge.isRoot) {
+    bridge.rootPathCost = 0;
+    bridge.rootPort = undefined;
+  }
+});
 
-    console.log(`STP: Root bridge elected: ${rootBridge.bridgeId}`);
+console.log(`STP: Root bridge elected: ${rb.bridgeId}`);
   }
 
   /**
@@ -462,12 +463,13 @@ export class SpanningTreeProtocol {
       }
     });
 
-    // Configure root port
-    if (bestRootPort) {
-      bestRootPort.role = STPPortRole.ROOT;
-      bridge.rootPort = bestRootPort.portId;
-      bridge.rootPathCost = lowestCost;
-    }
+// Configure root port
+if (bestRootPort) {
+  const brp = bestRootPort as STPPortInfo;
+  brp.role = STPPortRole.ROOT;
+  bridge.rootPort = brp.portId;
+  bridge.rootPathCost = lowestCost;
+}
 
     // Configure other ports as designated or blocked
     bridge.ports.forEach(port => {

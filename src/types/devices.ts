@@ -9,6 +9,8 @@ export interface BaseDevice {
   status: DeviceStatus;
   description?: string;
   password?: string; // optional device password for config GUI
+  // Allow legacy or auxiliary properties (e.g., x/y in sample data)
+  [key: string]: any;
 }
 
 /**
@@ -127,6 +129,26 @@ export interface ServerDevice extends BaseDevice {
  * Union type for all device types
  */
 export type NetworkDevice = SwitchDevice | RouterDevice | PcDevice | ServerDevice;
+
+/**
+ * Legacy alias for backward compatibility
+ */
+export type Device = NetworkDevice;
+
+/**
+ * Legacy interface for devices with additional properties for backward compatibility
+ */
+export interface LegacyDevice {
+  id: string;
+  name: string;
+  type: DeviceType;
+  position: Position;
+  status: DeviceStatus;
+  description?: string;
+  password?: string;
+  x?: number;
+  y?: number;
+}
 
 /**
  * MAC address table entry for switches

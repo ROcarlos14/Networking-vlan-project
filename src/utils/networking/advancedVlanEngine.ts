@@ -37,7 +37,9 @@ export interface VtpAdvertisement {
 /**
  * Extended VLAN Configuration with VTP support
  */
-export interface ExtendedVlanConfig extends VlanConfig {
+export interface ExtendedVlanConfig {
+  id: number;
+  name: string;
   state: 'active' | 'suspend';
   type: 'ethernet' | 'fddi' | 'tokenRing' | 'fddiNet' | 'trNet';
   mtu: number;
@@ -122,12 +124,12 @@ export class AdvancedVlanEngine {
     const currentConfig = this.vtpConfigs.get(deviceId);
     if (!currentConfig) return false;
     
-    const newConfig = { ...currentConfig, ...config };
+    const newConfig: VtpConfig = { ...currentConfig, ...config };
     
     // Validate configuration changes
     if (config.mode === VtpMode.CLIENT && config.revision !== undefined) {
-      // Clients cannot modify revision number
-      delete newConfig.revision;
+      // Clients cannot modify revision number - keep current revision
+      newConfig.revision = currentConfig.revision;
     }
     
     if (config.domain && config.domain !== currentConfig.domain) {

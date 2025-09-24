@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useAppStore } from '../store';
-import { Connection, NetworkDevice, ConnectionType, ConnectionStatus } from '../types';
+import { Connection, NetworkDevice, ConnectionType, ConnectionStatus, InterfaceStatus, DeviceType } from '../types';
 import { generateId } from '../data/sampleData';
 
 /**
@@ -18,7 +18,7 @@ interface ConnectionCreationState {
  * Custom hook for managing connections between devices
  */
 export const useConnectionManager = () => {
-  const { devices, connections, addConnection } = useAppStore();
+  const { devices, connections, addConnection, updateDevice } = useAppStore();
   const [connectionState, setConnectionState] = useState<ConnectionCreationState>({
     isCreating: false,
   });
@@ -64,24 +64,29 @@ export const useConnectionManager = () => {
    */
   const getAvailableInterface = (device: NetworkDevice) => {
     switch (device.type) {
-      case 'switch':
-      case 'router':
+      case DeviceType.SWITCH:
+      case DeviceType.ROUTER: {
         const deviceWithInterfaces = device as any;
-        // Find first interface that's not already used in a connection
+        // Find first interface that's not already used on THIS device
         return deviceWithInterfaces.interfaces?.find((iface: any) => {
-          return !connections.some(conn => 
-            conn.sourceInterface === iface.id || conn.targetInterface === iface.id
+          return !connections.some(conn =>
+            (conn.sourceDevice === device.id && conn.sourceInterface === iface.id) ||
+            (conn.targetDevice === device.id && conn.targetInterface === iface.id)
           );
-        });
-      case 'pc':
-      case 'server':
+        }) || null;
+      }
+      case DeviceType.PC:
+      case DeviceType.SERVER: {
         const deviceWithInterface = device as any;
-        // Check if the single interface is available
+        const ifaceId = deviceWithInterface.interface?.id;
+        if (!ifaceId) return null;
+        // Check if the single interface is already used on THIS device
         const isUsed = connections.some(conn =>
-          conn.sourceInterface === deviceWithInterface.interface?.id || 
-          conn.targetInterface === deviceWithInterface.interface?.id
+          (conn.sourceDevice === device.id && conn.sourceInterface === ifaceId) ||
+          (conn.targetDevice === device.id && conn.targetInterface === ifaceId)
         );
         return isUsed ? null : deviceWithInterface.interface;
+      }
       default:
         return null;
     }
@@ -112,6 +117,22 @@ export const useConnectionManager = () => {
     setConnectionState((prev) => ({ ...prev, targetInterfaceId: ifaceId }));
   }, []);
 
+  // Helper to set interface status UP after connecting
+  const setInterfaceUp = useCallback((device: NetworkDevice, interfaceId: string) => {
+    if (device.type === DeviceType.SWITCH || device.type === DeviceType.ROUTER || device.type === DeviceType.SERVER) {
+      const devAny = device as any;
+      if (Array.isArray(devAny.interfaces)) {
+        const newIfaces = devAny.interfaces.map((i: any) => i.id === interfaceId ? { ...i, status: InterfaceStatus.UP } : i);
+        updateDevice(device.id, { interfaces: newIfaces } as any);
+      }
+    } else if (device.type === DeviceType.PC) {
+      const devPc = device as any;
+      if (devPc.interface && devPc.interface.id === interfaceId) {
+        updateDevice(device.id, { interface: { ...devPc.interface, status: InterfaceStatus.UP } } as any);
+      }
+    }
+  }, [updateDevice]);
+
   const commitConnection = useCallback(() => {
     const { sourceDevice, sourceInterfaceId, targetDevice, targetInterfaceId } = connectionState;
     if (!sourceDevice || !sourceInterfaceId || !targetDevice || !targetInterfaceId) return;
@@ -138,7 +159,63 @@ export const useConnectionManager = () => {
       bandwidth: 1000,
     };
     addConnection(newConnection);
+
+    // Turn up interfaces on both ends
+    const srcDev = devices.find(d => d.id === sourceDevice.id);
+    const dstDev = devices.find(d => d.id === targetDevice.id);
+    if (srcDev) setInterfaceUp(srcDev, sourceInterfaceId);
+    if (dstDev) setInterfaceUp(dstDev, targetInterfaceId);
+
     setConnectionState({ isCreating: false });
+  }, [connectionState, connections, addConnection]);
+
+  /**
+   * Quickly connect current source device to a target device using first available interfaces
+   */
+  const quickConnectToTarget = useCallback((targetDevice: NetworkDevice): boolean => {
+    const { sourceDevice } = connectionState;
+    if (!sourceDevice) return false;
+
+    const srcIface = getAvailableInterface(sourceDevice);
+    const dstIface = getAvailableInterface(targetDevice);
+
+    if (!srcIface || !dstIface) {
+      setConnectionState({ isCreating: false });
+      return false;
+    }
+
+    // Prevent duplicates
+    const duplicate = connections.find(conn => (
+      (conn.sourceDevice === sourceDevice.id && conn.sourceInterface === srcIface.id && conn.targetDevice === targetDevice.id && conn.targetInterface === dstIface.id) ||
+      (conn.sourceDevice === targetDevice.id && conn.sourceInterface === dstIface.id && conn.targetDevice === sourceDevice.id && conn.targetInterface === srcIface.id)
+    ));
+    if (duplicate) {
+      setConnectionState({ isCreating: false });
+      return false;
+    }
+
+    const newConnection: Connection = {
+      id: generateId(),
+      name: `${sourceDevice.name}-${targetDevice.name}`,
+      sourceDevice: sourceDevice.id,
+      sourceInterface: srcIface.id,
+      targetDevice: targetDevice.id,
+      targetInterface: dstIface.id,
+      connectionType: ConnectionType.ETHERNET,
+      status: ConnectionStatus.UP,
+      bandwidth: 1000,
+    };
+
+    addConnection(newConnection);
+
+    // Turn up interfaces on both ends
+    const srcDev = devices.find(d => d.id === sourceDevice.id);
+    const dstDev = devices.find(d => d.id === targetDevice.id);
+    if (srcDev) setInterfaceUp(srcDev, srcIface.id);
+    if (dstDev) setInterfaceUp(dstDev, dstIface.id);
+
+    setConnectionState({ isCreating: false });
+    return true;
   }, [connectionState, connections, addConnection]);
 
   return {
@@ -153,5 +230,7 @@ export const useConnectionManager = () => {
     setSourceInterfaceId,
     setTargetInterfaceId,
     commitConnection,
+    getAvailableInterface,
+    quickConnectToTarget,
   };
 };

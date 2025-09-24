@@ -357,14 +357,14 @@ export class SimulationEngine {
 
     const broadcastPackets: SimulatedPacket[] = [];
     
-    // Find all devices in the same broadcast domain (same VLAN)
-    const targetDevices = this.devices.filter(d => {
-      if (d.id === sourceDeviceId || d.type === DeviceType.SWITCH) return false;
-      
-      // For simplicity, broadcast to all non-switch devices in same VLAN
-      // In reality, this would depend on switch forwarding decisions
-      return true;
-    });
+    // Constrain broadcast to VLAN-reachable devices
+    const vlanId = vlanTag || this.inferPacketVlan({
+      id: '', type: PacketType.ARP, sourceDevice: sourceDeviceId, targetDevice: '',
+      sourceMac: '', targetMac: '', timestamp: new Date(), size: 64, protocol: NetworkProtocol.ARP, payload: {}
+    } as any, this.devices.find(d => d.id === sourceDeviceId)!) || 1;
+
+    const reachable = new Set(this.getVlanReachableDevices(sourceDeviceId, vlanId));
+    const targetDevices = this.devices.filter(d => d.id !== sourceDeviceId && d.type !== DeviceType.SWITCH && reachable.has(d.id));
 
     targetDevices.forEach(targetDevice => {
       const packet = this.createTestPacket(
@@ -653,7 +653,7 @@ export class SimulationEngine {
   private inferPacketVlan(packet: SimulatedPacket, sourceDevice: NetworkDevice): number | undefined {
     if (packet.vlanTag) return packet.vlanTag;
 
-    // If source is an end-host with single interface, find its uplink to a switch
+    // If source is an end-host with single interface, find its uplink to a switch and infer VLAN from switch-side port
     const uplink = this.connections.find(c => c.sourceDevice === sourceDevice.id || c.targetDevice === sourceDevice.id);
     if (!uplink) return undefined;
     const switchId = uplink.sourceDevice === sourceDevice.id ? uplink.targetDevice : uplink.sourceDevice;
@@ -665,12 +665,14 @@ export class SimulationEngine {
     if (!swIf) return undefined;
 
     if (swIf.type === InterfaceType.ACCESS) {
-      return swIf.vlanConfig?.accessVlan ?? 1;
+      // Untagged host traffic is in the access VLAN
+      return swIf.vlanConfig?.accessVlan;
     }
     if (swIf.type === InterfaceType.TRUNK) {
-      return swIf.vlanConfig?.nativeVlan ?? 1;
+      // Untagged host traffic would map to native VLAN on a trunk (though hosts usually aren't on trunks)
+      return swIf.vlanConfig?.nativeVlan;
     }
-    return 1;
+    return undefined;
   }
 
   /**
@@ -698,20 +700,21 @@ export class SimulationEngine {
    * Check if packet can traverse link between devices
    */
   private canPacketTraverseLink(packet: SimulatedPacket, currentDevice: NetworkDevice, nextDevice: NetworkDevice): boolean {
-    // Both devices must be switches for VLAN checking
-    if (currentDevice.type === DeviceType.SWITCH && nextDevice.type === DeviceType.SWITCH) {
-      const switch1 = currentDevice as SwitchDevice;
-      const switch2 = nextDevice as SwitchDevice;
-      
-      if (packet.vlanTag) {
-        // If target MAC is unknown on nextDevice for this VLAN and not ARP, simulate ARP resolution
-        if (packet.protocol !== NetworkProtocol.ARP) {
-          const macKnown = this.lookupMac(nextDevice.id, packet.targetMac, packet.vlanTag) !== undefined;
-          if (!macKnown) {
-            this.simulateArpResolution(packet);
-          }
+    // Enforce VLAN allowance on the actual connection between the two devices
+    if (packet.vlanTag) {
+      const conn = this.getConnectionBetweenDevices(currentDevice.id, nextDevice.id);
+      if (conn && !this.isVlanAllowedOnConnection(conn, packet.vlanTag)) {
+        return false;
+      }
+    }
+
+    // For switch-to-switch, optionally trigger ARP learning if unknown
+    if (currentDevice.type === DeviceType.SWITCH && nextDevice.type === DeviceType.SWITCH && packet.vlanTag) {
+      if (packet.protocol !== NetworkProtocol.ARP) {
+        const macKnown = this.lookupMac(nextDevice.id, packet.targetMac, packet.vlanTag) !== undefined;
+        if (!macKnown) {
+          this.simulateArpResolution(packet);
         }
-        return canSwitchesCommunicate(switch1, switch2, packet.vlanTag, this.connections);
       }
     }
 
@@ -907,7 +910,7 @@ export class SimulationEngine {
       return device.interface.ipAddress;
     }
     if ('interfaces' in device && device.interfaces && device.interfaces.length > 0) {
-      return device.interfaces.find(iface => iface.ipAddress)?.ipAddress;
+      return device.interfaces.find((iface: any) => iface.ipAddress)?.ipAddress;
     }
     return undefined;
   }
@@ -1066,17 +1069,38 @@ export class SimulationEngine {
       return false;
     }
 
-    // For switch-to-switch connections, check trunk configuration
+    // Helper to check a switch interface allows a VLAN
+    const switchInterfaceAllowsVlan = (sw: SwitchDevice, ifaceId: string | undefined, vlanId: number): boolean => {
+      if (!ifaceId) return false;
+      const iface = sw.interfaces.find(i => i.id === ifaceId);
+      if (!iface || !iface.vlanConfig) return false;
+      if (iface.type === InterfaceType.ACCESS) {
+        return iface.vlanConfig.accessVlan === vlanId;
+      }
+      if (iface.type === InterfaceType.TRUNK) {
+        const allowed = iface.vlanConfig.allowedVlans || [];
+        return allowed.includes(vlanId);
+      }
+      return false;
+    };
+
+    // Switch-to-switch: both sides must allow VLAN
     if (sourceDevice.type === DeviceType.SWITCH && targetDevice.type === DeviceType.SWITCH) {
-      return canSwitchesCommunicate(
-        sourceDevice as SwitchDevice,
-        targetDevice as SwitchDevice,
-        vlanId,
-        this.connections
-      );
+      const sw1 = sourceDevice as SwitchDevice;
+      const sw2 = targetDevice as SwitchDevice;
+      const sw1If = connection.sourceDevice === sw1.id ? connection.sourceInterface : connection.targetInterface;
+      const sw2If = connection.sourceDevice === sw2.id ? connection.sourceInterface : connection.targetInterface;
+      return switchInterfaceAllowsVlan(sw1, sw1If, vlanId) && switchInterfaceAllowsVlan(sw2, sw2If, vlanId);
     }
 
-    // For other connections, allow if both devices support the VLAN
+    // Switch-to-host: the switch-side interface must allow VLAN
+    if (sourceDevice.type === DeviceType.SWITCH || targetDevice.type === DeviceType.SWITCH) {
+      const sw = (sourceDevice.type === DeviceType.SWITCH ? sourceDevice : targetDevice) as SwitchDevice;
+      const swIf = sw.id === connection.sourceDevice ? connection.sourceInterface : connection.targetInterface;
+      return switchInterfaceAllowsVlan(sw, swIf, vlanId);
+    }
+
+    // Host-to-host: VLAN not applicable at L2 in this model
     return true;
   }
 
@@ -1084,10 +1108,10 @@ export class SimulationEngine {
    * Lookup MAC address in forwarding tables
    */
   private lookupMacForwarding(macAddress: string, sourceDeviceId: string, vlanId: number): string[] {
-    // Simplified MAC lookup - return path to target if found
-    const targetDevice = this.devices.find(d => this.getDeviceMacAddress(d) === macAddress);
+    // Map MAC to device (end-hosts own MACs). If found, use VLAN-aware path.
+    const targetDevice = this.devices.find(d => this.getDeviceMacAddress(d).toLowerCase() === macAddress.toLowerCase());
     if (targetDevice) {
-      return this.findShortestPath(sourceDeviceId, targetDevice.id);
+      return this.findVlanAwarePath(sourceDeviceId, targetDevice.id, vlanId);
     }
     return [];
   }

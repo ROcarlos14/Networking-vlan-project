@@ -1,4 +1,5 @@
 import { LearningScenario } from '../components/Learning/VlanLearningInterface';
+import { DeviceType, ConnectionType, ConnectionStatus } from '../types';
 
 /**
  * Comprehensive VLAN Learning Scenarios Database
@@ -127,7 +128,7 @@ export const learningScenarios: LearningScenario[] = [
         {
           id: 'sw1',
           name: 'Main-Switch',
-          type: 'switch',
+          type: DeviceType.SWITCH,
           x: 400,
           y: 300,
           config: { ports: 24 }
@@ -135,7 +136,7 @@ export const learningScenarios: LearningScenario[] = [
         {
           id: 'sales-pc1',
           name: 'Sales-PC1',
-          type: 'pc',
+          type: DeviceType.PC,
           x: 200,
           y: 200,
           config: { vlan: 10 }
@@ -143,7 +144,7 @@ export const learningScenarios: LearningScenario[] = [
         {
           id: 'sales-pc2',
           name: 'Sales-PC2',
-          type: 'pc',
+          type: DeviceType.PC,
           x: 250,
           y: 250,
           config: { vlan: 10 }
@@ -151,7 +152,7 @@ export const learningScenarios: LearningScenario[] = [
         {
           id: 'it-pc1',
           name: 'IT-PC1',
-          type: 'pc',
+          type: DeviceType.PC,
           x: 550,
           y: 200,
           config: { vlan: 20 }
@@ -159,17 +160,69 @@ export const learningScenarios: LearningScenario[] = [
         {
           id: 'hr-pc1',
           name: 'HR-PC1',
-          type: 'pc',
+          type: DeviceType.PC,
           x: 400,
           y: 150,
           config: { vlan: 30 }
         }
       ],
       connections: [
-        { id: 'c1', from: 'sales-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port1' },
-        { id: 'c2', from: 'sales-pc2', to: 'sw1', fromInterface: 'eth0', toInterface: 'port2' },
-        { id: 'c3', from: 'it-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port9' },
-        { id: 'c4', from: 'hr-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port17' }
+        { 
+          id: 'c1', 
+          sourceDevice: 'sales-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port1',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sales-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port1' 
+        },
+        { 
+          id: 'c2', 
+          sourceDevice: 'sales-pc2', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port2',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sales-pc2', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port2' 
+        },
+        { 
+          id: 'c3', 
+          sourceDevice: 'it-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port9',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'it-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port9' 
+        },
+        { 
+          id: 'c4', 
+          sourceDevice: 'hr-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port17',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'hr-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port17' 
+        }
       ]
     }
   },
@@ -260,19 +313,84 @@ export const learningScenarios: LearningScenario[] = [
     ],
     initialTopology: {
       devices: [
-        { id: 'sw-a', name: 'Switch-A', type: 'switch', x: 200, y: 300 },
-        { id: 'sw-b', name: 'Switch-B', type: 'switch', x: 600, y: 300 },
-        { id: 'sales-pc1', name: 'Sales-PC1', type: 'pc', x: 100, y: 200 },
-        { id: 'sales-pc2', name: 'Sales-PC2', type: 'pc', x: 700, y: 200 },
-        { id: 'it-pc1', name: 'IT-PC1', type: 'pc', x: 100, y: 400 },
-        { id: 'it-pc2', name: 'IT-PC2', type: 'pc', x: 700, y: 400 }
+        { id: 'sw-a', name: 'Switch-A', type: DeviceType.SWITCH, x: 200, y: 300 },
+        { id: 'sw-b', name: 'Switch-B', type: DeviceType.SWITCH, x: 600, y: 300 },
+        { id: 'sales-pc1', name: 'Sales-PC1', type: DeviceType.PC, x: 100, y: 200 },
+        { id: 'sales-pc2', name: 'Sales-PC2', type: DeviceType.PC, x: 700, y: 200 },
+        { id: 'it-pc1', name: 'IT-PC1', type: DeviceType.PC, x: 100, y: 400 },
+        { id: 'it-pc2', name: 'IT-PC2', type: DeviceType.PC, x: 700, y: 400 }
       ],
       connections: [
-        { id: 'trunk', from: 'sw-a', to: 'sw-b', fromInterface: 'port24', toInterface: 'port1' },
-        { id: 'c1', from: 'sales-pc1', to: 'sw-a', fromInterface: 'eth0', toInterface: 'port1' },
-        { id: 'c2', from: 'it-pc1', to: 'sw-a', fromInterface: 'eth0', toInterface: 'port9' },
-        { id: 'c3', from: 'sales-pc2', to: 'sw-b', fromInterface: 'eth0', toInterface: 'port2' },
-        { id: 'c4', from: 'it-pc2', to: 'sw-b', fromInterface: 'eth0', toInterface: 'port10' }
+        { 
+          id: 'trunk', 
+          sourceDevice: 'sw-a', 
+          targetDevice: 'sw-b', 
+          sourceInterface: 'port24', 
+          targetInterface: 'port1',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sw-a', 
+          to: 'sw-b', 
+          fromInterface: 'port24', 
+          toInterface: 'port1' 
+        },
+        { 
+          id: 'c1', 
+          sourceDevice: 'sales-pc1', 
+          targetDevice: 'sw-a', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port1',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sales-pc1', 
+          to: 'sw-a', 
+          fromInterface: 'eth0', 
+          toInterface: 'port1' 
+        },
+        { 
+          id: 'c2', 
+          sourceDevice: 'it-pc1', 
+          targetDevice: 'sw-a', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port9',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'it-pc1', 
+          to: 'sw-a', 
+          fromInterface: 'eth0', 
+          toInterface: 'port9' 
+        },
+        { 
+          id: 'c3', 
+          sourceDevice: 'sales-pc2', 
+          targetDevice: 'sw-b', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port2',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sales-pc2', 
+          to: 'sw-b', 
+          fromInterface: 'eth0', 
+          toInterface: 'port2' 
+        },
+        { 
+          id: 'c4', 
+          sourceDevice: 'it-pc2', 
+          targetDevice: 'sw-b', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port10',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'it-pc2', 
+          to: 'sw-b', 
+          fromInterface: 'eth0', 
+          toInterface: 'port10' 
+        }
       ]
     }
   },
@@ -395,19 +513,84 @@ export const learningScenarios: LearningScenario[] = [
     ],
     initialTopology: {
       devices: [
-        { id: 'router1', name: 'Core-Router', type: 'router', x: 400, y: 150 },
-        { id: 'sw1', name: 'Main-Switch', type: 'switch', x: 400, y: 350 },
-        { id: 'sales-pc1', name: 'Sales-PC1', type: 'pc', x: 200, y: 450 },
-        { id: 'it-pc1', name: 'IT-PC1', type: 'pc', x: 400, y: 450 },
-        { id: 'hr-pc1', name: 'HR-PC1', type: 'pc', x: 600, y: 450 },
-        { id: 'server1', name: 'File-Server', type: 'server', x: 400, y: 50 }
+        { id: 'router1', name: 'Core-Router', type: DeviceType.ROUTER, x: 400, y: 150 },
+        { id: 'sw1', name: 'Main-Switch', type: DeviceType.SWITCH, x: 400, y: 350 },
+        { id: 'sales-pc1', name: 'Sales-PC1', type: DeviceType.PC, x: 200, y: 450 },
+        { id: 'it-pc1', name: 'IT-PC1', type: DeviceType.PC, x: 400, y: 450 },
+        { id: 'hr-pc1', name: 'HR-PC1', type: DeviceType.PC, x: 600, y: 450 },
+        { id: 'server1', name: 'File-Server', type: DeviceType.SERVER, x: 400, y: 50 }
       ],
       connections: [
-        { id: 'router-sw', from: 'router1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port24' },
-        { id: 'c1', from: 'sales-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port1' },
-        { id: 'c2', from: 'it-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port9' },
-        { id: 'c3', from: 'hr-pc1', to: 'sw1', fromInterface: 'eth0', toInterface: 'port17' },
-        { id: 'c4', from: 'server1', to: 'router1', fromInterface: 'eth0', toInterface: 'eth1' }
+        { 
+          id: 'router-sw', 
+          sourceDevice: 'router1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port24',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'router1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port24' 
+        },
+        { 
+          id: 'c1', 
+          sourceDevice: 'sales-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port1',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'sales-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port1' 
+        },
+        { 
+          id: 'c2', 
+          sourceDevice: 'it-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port9',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'it-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port9' 
+        },
+        { 
+          id: 'c3', 
+          sourceDevice: 'hr-pc1', 
+          targetDevice: 'sw1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'port17',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'hr-pc1', 
+          to: 'sw1', 
+          fromInterface: 'eth0', 
+          toInterface: 'port17' 
+        },
+        { 
+          id: 'c4', 
+          sourceDevice: 'server1', 
+          targetDevice: 'router1', 
+          sourceInterface: 'eth0', 
+          targetInterface: 'eth1',
+          connectionType: ConnectionType.ETHERNET,
+          status: ConnectionStatus.UP,
+          bandwidth: 1000,
+          from: 'server1', 
+          to: 'router1', 
+          fromInterface: 'eth0', 
+          toInterface: 'eth1' 
+        }
       ]
     }
   },

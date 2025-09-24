@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
-import { Device, Connection, VlanConfig } from '../../types';
+import { Device, Connection, DeviceType, ConnectionType, ConnectionStatus } from '../../types';
+import { getVlanColor } from '../../types/colors';
 
 /**
  * Learning Mode Types
@@ -43,7 +44,7 @@ export interface LearningScenario {
   prerequisites: string[];
   steps: TutorialStep[];
   initialTopology: {
-    devices: Device[];
+    devices: any[];
     connections: Connection[];
   };
 }
@@ -173,39 +174,53 @@ const VlanLearningInterface: React.FC = () => {
           {
             id: 'sw1',
             name: 'Switch1',
-            type: 'switch',
-            x: 400,
-            y: 300,
+            type: DeviceType.SWITCH,
+            position: { x: 400, y: 300 },
+            status: 'active' as any,
+            interfaces: [],
+            macAddressTable: [],
+            vlanDatabase: [],
+            spanningTreeEnabled: true,
             config: { ports: 24 }
           },
           {
             id: 'pc1',
             name: 'Sales-PC1',
-            type: 'pc',
-            x: 200,
-            y: 200,
+            type: DeviceType.PC,
+            position: { x: 200, y: 200 },
+            status: 'active' as any,
+            interface: { id: 'eth0', name: 'eth0', type: 'ethernet' as any, status: 'up' as any, macAddress: '00:00:00:00:00:00', speed: 1000, duplex: 'full' },
             config: { vlan: 10 }
           },
           {
             id: 'pc2',
             name: 'IT-PC1',
-            type: 'pc',
-            x: 600,
-            y: 200,
+            type: DeviceType.PC,
+            position: { x: 600, y: 200 },
+            status: 'active' as any,
+            interface: { id: 'eth0', name: 'eth0', type: 'ethernet' as any, status: 'up' as any, macAddress: '00:00:00:00:00:00', speed: 1000, duplex: 'full' },
             config: { vlan: 20 }
           },
           {
             id: 'pc3',
             name: 'HR-PC1',
-            type: 'pc',
-            x: 400,
-            y: 100,
+            type: DeviceType.PC,
+            position: { x: 400, y: 100 },
+            status: 'active' as any,
+            interface: { id: 'eth0', name: 'eth0', type: 'ethernet' as any, status: 'up' as any, macAddress: '00:00:00:00:00:00', speed: 1000, duplex: 'full' },
             config: { vlan: 30 }
           }
         ],
         connections: [
           {
             id: 'conn1',
+            sourceDevice: 'pc1',
+            targetDevice: 'sw1',
+            sourceInterface: 'eth0',
+            targetInterface: 'port1',
+            connectionType: ConnectionType.ETHERNET,
+            status: ConnectionStatus.UP,
+            bandwidth: 1000,
             from: 'pc1',
             to: 'sw1',
             fromInterface: 'eth0',
@@ -213,6 +228,13 @@ const VlanLearningInterface: React.FC = () => {
           },
           {
             id: 'conn2',
+            sourceDevice: 'pc2',
+            targetDevice: 'sw1',
+            sourceInterface: 'eth0',
+            targetInterface: 'port9',
+            connectionType: ConnectionType.ETHERNET,
+            status: ConnectionStatus.UP,
+            bandwidth: 1000,
             from: 'pc2',
             to: 'sw1',
             fromInterface: 'eth0',
@@ -220,6 +242,13 @@ const VlanLearningInterface: React.FC = () => {
           },
           {
             id: 'conn3',
+            sourceDevice: 'pc3',
+            targetDevice: 'sw1',
+            sourceInterface: 'eth0',
+            targetInterface: 'port17',
+            connectionType: ConnectionType.ETHERNET,
+            status: ConnectionStatus.UP,
+            bandwidth: 1000,
             from: 'pc3',
             to: 'sw1',
             fromInterface: 'eth0',
@@ -313,12 +342,7 @@ const VlanLearningInterface: React.FC = () => {
     }
   };
 
-  /**
-   * Get VLAN color for visualization
-   */
-  const getVlanColor = (vlanId: number): string => {
-    return VLAN_COLORS[vlanId] || '#6B7280';
-  };
+  // Using imported getVlanColor function
 
   /**
    * Render scenario selection
@@ -479,7 +503,7 @@ const VlanLearningInterface: React.FC = () => {
                 
                 {validationResult.suggestions && validationResult.suggestions.length > 0 && (
                   <ul className="mt-2 text-sm text-red-700">
-                    {validationResult.suggestions.map((suggestion, index) => (
+                    {validationResult.suggestions.map((suggestion: string, index: number) => (
                       <li key={index}>• {suggestion}</li>
                     ))}
                   </ul>
